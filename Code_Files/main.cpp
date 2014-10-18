@@ -362,6 +362,455 @@ int convolution2d(IplImage *padded_32b,int posy,int posx,int laws_num) {
 	return res;
 }
 
+
+
+
+double convolution2d(IplImage *buffer, int posy, int posx, double *mask) {
+	
+	/*
+	FUNCTION INFO:-----convolution2d convolves a mask/kernel with an image at a specific point.
+	INPUT:--------------buffer:		IplImage pointer of the image that has depth, either IPL_DEPTH_64F or IPL_DEPTH_8U 
+						posx,posy:	The potition that convolution will be computed, THE CALLER MUST BE SURE that there are no out of bounds exceptions
+						mask:		The mask/kernel must be 7x7
+	OUPUT:--------------dst: A pointer to double that has to filtered version of img
+	MATLAB DIFFRENCES:--There are diffrence +-0.001 that i believe come from the order of the DP prakseis
+	TODO:---------------Parameterize for diffrent kernel sizes
+	*/
+	
+	int i, j;
+	double res;
+
+	res = 0;
+
+	if (buffer->depth==IPL_DEPTH_8U) {
+		for (i = -3; i <= 3; i++) {
+			for (j = -3; j <= 3; j++) {
+				res += CV_IMAGE_ELEM(buffer, unsigned char, posy + i, posx + j)* mask[(i + 3) * 7 + j + 3];
+			}
+		}
+	}
+
+	if (buffer->depth==IPL_DEPTH_64F) {
+		for (i = -3; i <= 3; i++) {
+			for (j = -3; j <= 3; j++) {
+				res += CV_IMAGE_ELEM(buffer, double, posy + i, posx + j)* mask[(i + 3) * 7 + j + 3];
+			}
+		}
+	}
+
+
+	return (res);
+}
+
+void filter_DP_2d(IplImage *img, double *dst, double *kernel) {
+	/*
+	FUNCTION INFO:-----filter_F_2d takes an IplImage pointer and filters all the image with a 2d float 8x8 kernel taking a double result
+	INPUT:--------------img:	IplImage pointer that has a non-bordered, one channel image. It has to have depth IPL_DEPTH_64F or IPL_DEPTH_8U
+						kernel: double pointer that has an exactly 7x7 kernel, if the kernel is larget we take the middle part, 
+								if it is smaller it crashes
+	OUPUT:--------------dst: A pointer to double that has to filtered version of img 
+	MATLAB DIFFRENCES:--There are diffrence +-0.001 that i believe come from the order of the DP prakseis
+	TODO:---------------Parameterize for diffrent kernel sizes
+	*/
+
+	int i, j;
+	int imageW = img->width;
+	int imageH = img->height;
+	IplImage *img_border;
+	
+
+	int type = img->depth;
+	img_border = cvCreateImage(cvSize(img->width + 6, img->height + 6), type, 1);
+	
+	CvPoint b;
+	b.x = 3;
+	b.y = 3;
+	cvCopyMakeBorder(img, img_border, b, IPL_BORDER_REPLICATE);
+
+	for (i = 0; i < imageH; i++){
+		for (j = 0; j < imageW; j++) {
+			dst[i*imageW + j] = convolution2d(img_border, i + 3, j + 3, kernel);
+		}
+	}
+}
+
+int myColorCanny(IplImage *src, unsigned char * canny_image) {
+
+	/*
+	FUNCTION INFO:------myColorCanny function is a canny implementation that takes into account
+	the color information of an image.
+	INPUT:--------------An IplImage pointer with an RGB image
+	OUPUT:--------------A binary image that gives the canny points
+	MATLAB DIFFRENCES:--I believe the only diffrences i have with the matlab code is because
+						of the FP operations (they are done in diffrent order). In the magnitude
+						the fault is +-0.0001, but it gives some diffrent canny points.
+	TODO:---------------Parameterize the Gaussian so the "user-programmer" can try diffrent size of gaussian masks
+						and diffrent sigmas.
+	*/
+
+	IplImage *src_gau_R, *src_gau_G, *src_gau_B, *src_gau;
+	int i, j;
+
+	src_gau = cvCreateImage(cvSize(src->width, src->height), 8, 3);
+	src_gau_R = cvCreateImage(cvSize(src->width, src->height), 8, 1);
+	src_gau_G = cvCreateImage(cvSize(src->width, src->height), 8, 1);
+	src_gau_B = cvCreateImage(cvSize(src->width, src->height), 8, 1);
+	int imageW = src->width;
+	int imageH = src->height;
+
+	//split the channels
+	cvSplit(src, src_gau_B, src_gau_G, src_gau_R, NULL);
+
+	//create gaussian filter 2-d 7x7
+	double *gau = (double *)malloc(7 * 7 * sizeof(double));
+
+	double sig = 0.7;
+	double tmp;
+	for (i = -3; i < 4; i++) {
+		for (j = -3; j <= 3; j++) {
+			tmp = exp((double)(-i*i - j*j) / (2 * sig*sig));
+			gau[(i + 3) * 7 + j + 3] = tmp / ((2 * PI*sig*sig)*(2 * PI*sig*sig));
+		}
+	}
+
+	//filter RGB channels with the gaussian
+	double * R_blurred = (double *)malloc(imageW*imageH*sizeof(double));
+	double * G_blurred = (double *)malloc(imageW*imageH*sizeof(double));
+	double * B_blurred = (double *)malloc(imageW*imageH*sizeof(double));
+
+	filter_DP_2d(src_gau_R, R_blurred, gau);
+	filter_DP_2d(src_gau_G, G_blurred, gau);
+	filter_DP_2d(src_gau_B, B_blurred, gau);
+
+	//pass the result of the filtering to IplImage buffers
+	IplImage *R_blurred_double = cvCreateImage(cvSize(imageW, imageH), IPL_DEPTH_64F, 1);
+	IplImage *G_blurred_double = cvCreateImage(cvSize(imageW, imageH), IPL_DEPTH_64F, 1);
+	IplImage *B_blurred_double = cvCreateImage(cvSize(imageW, imageH), IPL_DEPTH_64F, 1);
+
+	for (i = 0; i < imageH; i++){
+		for (j = 0; j < imageW; j++) {
+			CV_IMAGE_ELEM(R_blurred_double, double, i, j) = R_blurred[i*imageW + j];
+			CV_IMAGE_ELEM(G_blurred_double, double, i, j) = G_blurred[i*imageW + j];
+			CV_IMAGE_ELEM(B_blurred_double, double, i, j) = B_blurred[i*imageW + j];
+		}
+	}
+
+	//Compute diffrence of gaussians 7x7 for y-axis
+	for (i = -3; i <= 3; i++) {
+		for (j = -3; j <= 3; j++) {
+			tmp = exp((double)(-i*i - j*j) / (2 * sig*sig));
+			gau[(i + 3) * 7 + j + 3] = -i * tmp / (PI*sig*sig);
+		}
+	}
+
+	//filter the previous blurred channels with diffrence of gaussian y-axis
+	double * Ry = (double *)malloc(imageW*imageH*sizeof(double));
+	double * Gy = (double *)malloc(imageW*imageH*sizeof(double));
+	double * By = (double *)malloc(imageW*imageH*sizeof(double));
+	
+
+	filter_DP_2d(R_blurred_double, Ry, gau);
+	filter_DP_2d(G_blurred_double, Gy, gau);
+	filter_DP_2d(B_blurred_double, By, gau);
+
+
+	//Compute diffrence of gaussians 7x7 for x-axis
+	for (i = -3; i <= 3; i++) {
+		for (j = -3; j <= 3; j++) {
+			tmp = exp((double)(-j*j - i*i) / (2 * sig*sig));
+			gau[(i + 3) * 7 + j + 3] = -j * tmp / (PI*sig*sig);
+		}
+	}
+	//filter the previous blurred channels with diffrence of gaussian x-axis
+	double * Rx = (double *)malloc(imageW*imageH*sizeof(double));
+	double * Gx = (double *)malloc(imageW*imageH*sizeof(double));
+	double * Bx = (double *)malloc(imageW*imageH*sizeof(double));
+
+	filter_DP_2d(R_blurred_double, Rx, gau);
+	filter_DP_2d(G_blurred_double, Gx, gau);
+	filter_DP_2d(B_blurred_double, Bx, gau);
+
+
+	//compute the magnitude of the color gradients
+	struct g * image_g = (struct g *)malloc(imageW*imageH*sizeof(struct g));
+	double rx, gx, bx, ry, gy, by;
+	double gxx, gyy, gxy, theta, gtheta_a, gtheta_b;
+	double temp;
+
+
+	for (i = 0; i < imageH; i++) {
+		for (j = 0; j < imageW; j++) {
+			rx = -Rx[i*imageW + j];
+			gx = -Gx[i*imageW + j];
+			bx = -Bx[i*imageW + j];
+			ry = -Ry[i*imageW + j];
+			gy = -Gy[i*imageW + j];
+			by = -By[i*imageW + j];
+			gxx = (rx*rx + gx*gx + bx*bx);
+			gyy = (ry*ry + gy*gy + by*by);
+			gxy = (rx*ry + gx*gy + rx*ry);
+
+			if (gxx != gxy){
+				temp = (double)(2 * gxy) / (gxx - gyy);
+				theta = 0.5 * (atan(temp));
+			}
+			else {
+				theta = PI / 4;
+			}
+
+			gtheta_a = 0.5 * ((gxx + gyy) + (gxx - gyy)*
+				cos(2 * theta) + 2 * gxy * sin(2 * theta));
+
+			gtheta_b = 0.5 * ((gxx + gyy) + (gxx - gyy)*
+				cos(2 * (theta + PI / 2)) + 2 * gxy*sin(2 * (theta + PI / 2)));
+
+			gtheta_a = sqrt(abs(gtheta_a));
+			gtheta_b = sqrt(abs(gtheta_b));
+
+			if (gtheta_a > gtheta_b) {
+				image_g[i*imageW + j].gtheta = gtheta_a;
+				image_g[i*imageW + j].magn_x = gtheta_a * cos(theta);
+				image_g[i*imageW + j].magn_y = gtheta_a * sin(theta);
+				image_g[i*imageW + j].theta = theta;
+			}
+			else {
+				image_g[i*imageW + j].gtheta = gtheta_b;
+				image_g[i*imageW + j].magn_x = (gtheta_b * cos(theta + PI / 2));
+				image_g[i*imageW + j].magn_y = (gtheta_b * sin(theta + PI / 2));
+				image_g[i*imageW + j].theta = (theta + PI / 2);
+			}
+		}
+	}
+
+	//find max min
+	double gmax = 0;
+	double gmin = 100000.0;
+	for (i = 0; i < imageH; i++) {
+		for (j = 0; j < imageW; j++) {
+			if (image_g[i*imageW + j].gtheta>gmax) {
+				gmax = image_g[i*imageW + j].gtheta;
+			}
+			if (image_g[i*imageW + j].gtheta<gmin) {
+				gmin = image_g[i*imageW + j].gtheta;
+			}
+		}
+	}
+
+	//Normalize gtheta 0 - 1
+	for (i = 0; i < imageH; i++){
+		for (j = 0; j < imageW; j++){
+			image_g[i*imageW + j].gtheta = (image_g[i*imageW + j].gtheta - gmin) / (gmax - gmin);
+		}
+	}
+
+	//Find local maximums and decide if they are weak or strong edges 
+	double ay, ax, d, grad1, grad2;
+	int flag;
+	unsigned char * localMax = (unsigned char *)calloc(imageW*imageH, sizeof(unsigned char));
+	unsigned char * weakEdges = (unsigned char *)calloc(imageW*imageH, sizeof(unsigned char));
+	unsigned char * strongEdges = (unsigned char *)calloc(imageW*imageH, sizeof(unsigned char));
+	for (i = 1; i < imageH - 1; i++) {
+		for (j = 1; j < imageW - 1; j++)	{
+			ax = image_g[i*imageW + j].magn_x;
+			ay = image_g[i*imageW + j].magn_y;
+			flag = 0;
+			//check the direction that the edge has (0-45 45-90 90-135 135-180) and then calculate the linear interpolation
+			if ((ay <= 0 && ax > -ay) || (ay >= 0 && ax < -ay)) {
+				d = abs(ay / ax);
+				grad1 = image_g[i*imageW + j + 1].gtheta*(1 - d) +
+					image_g[(i - 1)*imageW + j + 1].gtheta*d;
+				grad2 = image_g[i*imageW + j - 1].gtheta*(1 - d) +
+					image_g[(i + 1)*imageW + j - 1].gtheta*d;
+				flag = 1;
+			}
+			else if ((ax > 0 && -ay >= ax) || (ax<0 && -ay <= ax)) {
+				d = abs(ax / ay);
+				grad1 = image_g[(i - 1)*imageW + j].gtheta*(1 - d) +
+					image_g[(i - 1)*imageW + j + 1].gtheta*d;
+				grad2 = image_g[(i + 1)*imageW + j].gtheta*(1 - d) +
+					image_g[(i + 1)*imageW + j - 1].gtheta*d;
+				flag = 1;
+			}
+			else if ((ax <= 0 && ax>ay) || (ax >= 0 && ax < ay)){
+				d = abs(ax / ay);
+				grad1 = image_g[(i - 1)*imageW + j].gtheta*(1 - d) +
+					image_g[(i - 1)*imageW + j - 1].gtheta*d;
+				grad2 = image_g[(i + 1)*imageW + j].gtheta*(1 - d) +
+					image_g[(i + 1)*imageW + j + 1].gtheta*d;
+				flag = 1;
+			}
+			else if ((ay < 0 && ax <= ay) || (ay>0 && ax >= ay)) {
+				d = abs(ay / ax);
+				grad1 = image_g[i*imageW + j - 1].gtheta*(1 - d) +
+					image_g[(i - 1)*imageW + j - 1].gtheta*d;
+				grad2 = image_g[i*imageW + j + 1].gtheta*(1 - d) +
+					image_g[(i + 1)*imageW + j + 1].gtheta*d;
+				flag = 1;
+			}
+			//if the center pixel is larger than both other its local maximum
+			if (image_g[i*imageW + j].gtheta >= grad1 && image_g[i*imageW + j].gtheta >= grad2 && flag == 1) {
+				localMax[i*imageW + j] = 1;
+				if (image_g[i*imageW + j].gtheta > CANNY_THRESHOLD_1) {
+					weakEdges[i*imageW + j] = 1;
+				}
+				if (image_g[i*imageW + j].gtheta > CANNY_THRESHOLD_2) {
+					strongEdges[i*imageW + j] = 1;
+				}
+			}
+		}
+	}
+
+
+	//make weakedges and strongedges 0 in borders so we dont go out of borders when we check for neighbors
+	for (i = 0; i < imageH; i++) {
+		for (j = 0; j < imageW; j++) {
+			if (i == 0 || j == 0 || i == imageH - 1 || j == imageW - 1){
+				weakEdges[i*imageW + j] = 0;
+				strongEdges[i*imageW + j] = 0;
+			}
+		}
+	}
+
+	//edges are all the weak edges that are 8-connected with a strong edge
+	unsigned char * visited = (unsigned char *)calloc(imageW*imageH, sizeof(unsigned char));
+	for (i = 0; i < imageH; i++){
+		for (j = 0; j < imageW; j++) {
+			if (strongEdges[i*imageW + j] == 1) {
+				visited[i*imageW + j] = 1;
+				canny_image[i*imageW + j] = 1;
+				checkneighbors(canny_image, weakEdges, visited, i, j, imageW, imageH);
+			}
+		}
+	}
+
+	//connect 1-pixel gaps
+	connectgaps(canny_image, imageW, imageH);
+
+	//remove the cutted off edges (alone)
+	int k, w;
+	for (i = 1; i < imageH - 1; i++){
+		for (j = 1; j < imageW - 1; j++) {
+			flag = 0;
+			for (k = -1; k <= 1; k++) {
+				for (w = -1; w <= 1; w++){
+					if (canny_image[(i + k)*imageW + j + w] == 1) {
+						flag = 1;
+					}
+				}
+			}
+			if (flag == 0) {
+				canny_image[i*imageW + j] = 0;
+			}
+		}
+	}
+
+	/* FOR DEBUGGING PURPOSES WE COUNT SOME STUFF
+	int countstrong = 0;
+	int countweak = 0;
+	int countmax = 0;
+	for (i = 0; i < imageH; i++) {
+	for (j = 0; j < imageW; j++) {
+	if (strongEdges[i*imageW + j] == 1) {
+	countstrong++;
+	}
+	if (weakEdges[i*imageW + j] == 1) {
+	countweak++;
+	}
+	if (localMax[i*imageW + j] == 1) {
+	countmax++;
+	}
+	}
+	} */
+
+	cvReleaseImage(&src_gau_R);
+	cvReleaseImage(&src_gau_G);
+	cvReleaseImage(&src_gau_B);
+	cvReleaseImage(&src_gau);
+	cvReleaseImage(&R_blurred_double);
+	cvReleaseImage(&G_blurred_double);
+	cvReleaseImage(&B_blurred_double);
+	free(R_blurred);
+	free(G_blurred);
+	free(B_blurred);
+	free(localMax);
+	free(weakEdges);
+	free(strongEdges);
+	free(Rx);
+	free(Ry);
+	free(Gx);
+	free(Gy);
+	free(Bx);
+	free(By);
+	free(visited);
+
+	return 0;
+}
+
+int connectgaps(unsigned char * img, int imageW, int imageH) {
+
+	/*
+	FUNCTION INFO:------Connectedgaps fucntion connects 1-pixels gaps in a binary image the function is in-place operation.
+	INPUT:--------------An unsigned char pointer to a buffer that has only binary values.
+	OUPUT:--------------Is the same buffer that has the inputs modified in-place.
+	MATLAB DIFFRENCES:--Its the exact same implementation, i believe no error is occured in this function
+	TODO:---------------Nothing
+	*/
+
+	int i, j;
+	int num_id;
+	for (i = 1; i < imageH - 1; i++) {
+		for (j = 1; j < imageW - 1; j++) {
+			if (img[i*imageW + j] == 0) {
+				num_id = img[(i - 1)*imageW + j - 1] * 1 + img[(i - 1)*imageW + j] * 2 +
+					img[(i - 1)*imageW + j + 1] * 4 + img[i*imageW + j + 1] * 8 +
+					img[(i + 1)*imageW + j + 1] * 16 + img[(i + 1) * imageW + j] * 32 +
+					img[(i + 1)*imageW + j - 1] * 64 + img[i*imageW + j - 1] * 128;
+			}
+			if (num_id == 32 + 2 || num_id == 1 + 4 || num_id == 128 + 8 || num_id == 16 + 64 ||
+				num_id == 2 + 128 || num_id == 128 + 4 || num_id == 2 + 8 || num_id == 1 + 8 ||
+				num_id == 64 + 8 || num_id == 8 + 32 || num_id == 4 + 32 || num_id == 1 + 32 ||
+				num_id == 1 + 16 || num_id == 1 + 64 || num_id == 2 + 64 || num_id == 2 + 16 ||
+				num_id == 4 + 16 || num_id == 32 + 128) {
+				img[i*imageW + j] = 1;
+			}
+
+		}
+	}
+	return 1;
+}
+
+int checkneighbors(unsigned char * out_buffer, unsigned char * weakEdges, unsigned char *visited, int i, int j, int imageW, int imageH) {
+
+	/*
+	FUNCTION INFO:------Check neighbors calculates 8-connected objects that start in a specific point and puts 1
+	in the output buffer where the object is.
+	INPUT:--------------weakEdges:	pointer to unsigned char, buffer with the binary picture, MUST HAVE 0 TO THE BORDER!
+						visited:	pointer to unsigned char, buffer that has 1 in place that we have visited or we want to ignore
+						i,j:		the coordinates from a point that our object has.
+						imageW/H:	the size of the weakEdges-visited buffer, they are obligated on the same size
+	OUPUT:--------------out_buffer:	pointer to unsigned char, buffer that gets 1 where the object is, CAREFULL if you want to have just
+						the one object it has to be initialized to zero before the function is called.
+	MATLAB DIFFRENCES:--None that come to my observation.
+	TODO:---------------Nothing.
+	*/
+
+	int k, w;
+
+	for (k = -1; k <= 1; k++) {
+		for (w = -1; w <= 1; w++) {
+			if (k != 0 || w != 0) {
+				if (weakEdges[(i + k) + j + w] == 1 && visited[(i + k)*imageW + j + w] == 0) {
+					visited[(i + k)*imageW + j + w] = 1;
+					out_buffer[(i + k)*imageW + j + w] = 1;
+					checkneighbors(out_buffer, weakEdges, visited, i + k, j + w, imageW, imageH);
+				}
+			}
+		}
+	}
+
+	return 1;
+}
+
 int main(int argc, char *argv[]) {
 
 	IplImage *original_Image,*original_Image_bw,*edge_Image,*gaussian_image_bw;
@@ -392,11 +841,12 @@ int main(int argc, char *argv[]) {
 
 	int widthStep = derivative_Rx->widthStep;
 
-	//smoothing before canny, matlab does it automatically
-	//cvSmooth(original_Image_bw,gaussian_image_bw,CV_GAUSSIAN,7,7,3);
-	//cvCanny(gaussian_image_bw,edge_Image,CANNY_THRESHOLD_1,CANNY_THRESHOLD_2,3);
+	//smoothing before canny, matlab does it automatically, i was using this code before i wrote mycolorcanny
+		/*cvSmooth(original_Image_bw,gaussian_image_bw,CV_GAUSSIAN,7,7,3);
+		cvCanny(gaussian_image_bw,edge_Image,CANNY_THRESHOLD_1,CANNY_THRESHOLD_2,3); */
+
 	unsigned char * canny_im = (unsigned char *)calloc(imageW*imageH,sizeof(unsigned char));
-	myCanny(original_Image, canny_im);
+	myColorCanny(original_Image, canny_im);
 	for (i = 0; i < imageH; i++) {
 		for (j = 0; j < imageW; j++) {
 			if (canny_im[i*imageW + j] == 1) {
@@ -785,429 +1235,3 @@ int main(int argc, char *argv[]) {
 return 0;
 }
 
-
-double convolution2d(IplImage *buffer, int posy, int posx, double *mask, int type) {
-	int i, j;
-	double res;
-
-	res = 0;
-
-	if (type == 0) {
-		for (i = -3; i <= 3; i++) {
-			for (j = -3; j <= 3; j++) {
-				res += CV_IMAGE_ELEM(buffer, unsigned char, posy + i, posx + j)* mask[(i + 3) * 7 + j + 3];
-			}
-		}
-	}
-
-	if (type == 1) {
-		for (i = -3; i <= 3; i++) {
-			for (j = -3; j <= 3; j++) {
-				res += CV_IMAGE_ELEM(buffer, double, posy + i, posx + j)* mask[(i + 3) * 7 + j + 3];
-			}
-		}
-	}
-
-
-	return (res);
-}
-
-
-void filter_F_2d(IplImage *img, double *dst, double *kernel,int type) {
-	int i, j;
-	int imageW = img->width;
-	int imageH = img->height;
-	IplImage *img_border;
-
-	if (type == 0) {
-		img_border = cvCreateImage(cvSize(img->width + 6, img->height + 6), 8, 1);
-	}
-	else {
-		img_border = cvCreateImage(cvSize(img->width + 6, img->height + 6), IPL_DEPTH_64F, 1);
-	}
-
-	CvPoint b;
-	b.x = 3;
-	b.y = 3;
-	cvCopyMakeBorder(img, img_border, b, IPL_BORDER_REPLICATE);
-
-	for (i = 0; i < imageH; i++){
-		for (j = 0; j < imageW; j++) {
-			dst[i*imageW + j] = convolution2d(img_border, i+3, j+3, kernel,type);
-		}
-	}
-}
-
-int myCanny(IplImage *src, unsigned char * canny_image) {
-
-	IplImage *src_gau_R, *src_gau_G, *src_gau_B, *src_gau;
-	int i, j;
-
-	src_gau = cvCreateImage(cvSize(src->width, src->height), 8, 3);
-	src_gau_R = cvCreateImage(cvSize(src->width, src->height), 8, 1);
-	src_gau_G = cvCreateImage(cvSize(src->width, src->height), 8, 1);
-	src_gau_B = cvCreateImage(cvSize(src->width, src->height), 8, 1);
-	int imageW = src->width;
-	int imageH = src->height;
-
-	//cvSmooth(src, src_gau, CV_GAUSSIAN, 7, 7, 3);
-	cvSplit(src, src_gau_B, src_gau_G, src_gau_R, NULL);
-
-	
-	//my gaussian filter 2-d
-	double *gau = (double *)malloc(7 * 7 * sizeof(double));
-
-	double sig = 0.7;
-	double tmp;
-	for (i = -3; i < 4; i++) {
-		for (j = -3; j <= 3; j++) {
-			tmp = exp((double)(-i*i - j*j) / (2 * sig*sig));
-			gau[(i + 3) * 7 + j + 3] = tmp / ((2 * PI*sig*sig)*(2 * PI*sig*sig));
-		}
-	}
-	double * R_blurred = (double *)malloc(imageW*imageH*sizeof(double));
-	double * G_blurred = (double *)malloc(imageW*imageH*sizeof(double));
-	double * B_blurred = (double *)malloc(imageW*imageH*sizeof(double));
-
-	filter_F_2d(src_gau_R, R_blurred, gau,0);
-	filter_F_2d(src_gau_G, G_blurred, gau,0);
-	filter_F_2d(src_gau_B, B_blurred, gau,0);
-
-	IplImage *R_blurred_double = cvCreateImage(cvSize(imageW,imageH), IPL_DEPTH_64F, 1);
-	IplImage *G_blurred_double = cvCreateImage(cvSize(imageW, imageH), IPL_DEPTH_64F, 1);
-	IplImage *B_blurred_double = cvCreateImage(cvSize(imageW, imageH), IPL_DEPTH_64F, 1);
-
-	for (i = 0; i < imageH; i++){
-		for (j = 0; j < imageW; j++) {
-			CV_IMAGE_ELEM(R_blurred_double, double, i, j) = R_blurred[i*imageW + j];
-			CV_IMAGE_ELEM(G_blurred_double, double, i, j) = G_blurred[i*imageW + j];
-			CV_IMAGE_ELEM(B_blurred_double, double, i, j) = B_blurred[i*imageW + j];
-		}
-	}
-	for (i = -3; i <= 3; i++) {
-		for (j = -3; j <= 3; j++) {
-			tmp = exp((double)(-i*i - j*j) / (2 * sig*sig));
-			gau[(i + 3) * 7 + j + 3] = - i * tmp / (PI*sig*sig);
-		}
-	}
-
-	double * Ry = (double *)malloc(imageW*imageH*sizeof(double));
-	double * Gy = (double *)malloc(imageW*imageH*sizeof(double));
-	double * By = (double *)malloc(imageW*imageH*sizeof(double));
-	double * Rx = (double *)malloc(imageW*imageH*sizeof(double));
-	double * Gx = (double *)malloc(imageW*imageH*sizeof(double));
-	double * Bx = (double *)malloc(imageW*imageH*sizeof(double));
-
-	filter_F_2d(R_blurred_double, Ry, gau, 1);
-	filter_F_2d(G_blurred_double, Gy, gau, 1);
-	filter_F_2d(B_blurred_double, By, gau, 1);
-
-	for (i = -3; i <= 3; i++) {
-		for (j = -3; j <= 3; j++) {
-			tmp = exp((double)(-j*j - i*i) / (2 * sig*sig));
-			gau[(i + 3) * 7 + j + 3] = -j * tmp / (PI*sig*sig);
-		}
-	}
-
-	filter_F_2d(R_blurred_double, Rx, gau, 1);
-	filter_F_2d(G_blurred_double, Gx, gau, 1);
-	filter_F_2d(B_blurred_double, Bx, gau, 1);
-	
-	struct g * image_g = (struct g *)malloc(imageW*imageH*sizeof(struct g));
-	double rx, gx, bx, ry, gy, by;
-	double gxx, gyy, gxy, theta, gtheta_a, gtheta_b;
-	double temp;
-
-
-	for (i = 0; i < imageH; i++) {
-		for (j = 0; j < imageW; j++) {
-			rx = -Rx[i*imageW + j];
-			gx = -Gx[i*imageW + j];
-			bx = -Bx[i*imageW + j];
-			ry = -Ry[i*imageW + j];
-			gy = -Gy[i*imageW + j];
-			by = -By[i*imageW + j];
-			gxx = (rx*rx + gx*gx + bx*bx);
-			gyy = (ry*ry + gy*gy + by*by);
-			gxy = (rx*ry + gx*gy + rx*ry);
-
-			if (gxx != gxy){
-				temp = (double)(2 * gxy) / (gxx - gyy);
-				theta = 0.5 * (atan(temp));
-			}
-			else {
-				theta = PI / 4;
-			}
-
-			gtheta_a = 0.5 * ((gxx + gyy) + (gxx - gyy)*
-				cos(2 * theta) + 2 * gxy * sin(2 * theta));
-
-			gtheta_b = 0.5 * ((gxx + gyy) + (gxx - gyy)*
-				cos(2 * (theta + PI / 2)) + 2 * gxy*sin(2 * (theta + PI / 2)));
-
-			gtheta_a = sqrt(abs(gtheta_a));
-			gtheta_b = sqrt(abs(gtheta_b));
-
-			if (gtheta_a > gtheta_b) {
-				image_g[i*imageW + j].gtheta = gtheta_a;
-				image_g[i*imageW + j].magn_x = gtheta_a * cos(theta);
-				image_g[i*imageW + j].magn_y = gtheta_a * sin(theta);
-				image_g[i*imageW + j].theta = theta;
-			}
-			else {
-				image_g[i*imageW + j].gtheta = gtheta_b;
-				image_g[i*imageW + j].magn_x = (gtheta_b * cos(theta + PI / 2));
-				image_g[i*imageW + j].magn_y = (gtheta_b * sin(theta + PI / 2));
-				image_g[i*imageW + j].theta =  (theta + PI / 2);
-			}
-		}
-	}
-
-	//Normalize gtheta 0-1
-	double gmax = 0;
-	double gmin = 3.0;
-	int column, row;
-	for (i = 0; i < imageH; i++) {
-		for (j = 0; j < imageW; j++) {
-			if (image_g[i*imageW+j].gtheta>gmax) {
-				column = j;
-				row = i;
-				gmax = image_g[i*imageW + j].gtheta;
-			}
-			if (image_g[i*imageW + j].gtheta<gmin) {
-				gmin = image_g[i*imageW + j].gtheta;
-			}
-		}
-	}
-
-	for (i = 0; i < imageH; i++){
-		for (j = 0; j < imageW; j++){
-			image_g[i*imageW + j].gtheta = (image_g[i*imageW + j].gtheta - gmin) / (gmax - gmin);
-		}
-	}
-
-	float ay, ax, d, grad1, grad2;
-	int flag;
-	unsigned char * localMax = (unsigned char *)calloc(imageW*imageH, sizeof(unsigned char));
-	unsigned char * weakEdges = (unsigned char *)calloc(imageW*imageH, sizeof(unsigned char));
-	unsigned char * strongEdges = (unsigned char *)calloc(imageW*imageH, sizeof(unsigned char));
-	for (i = 1; i < imageH - 1; i++) {
-		for (j = 1; j < imageW - 1; j++)	{
-			ax = image_g[i*imageW + j].magn_x;
-			ay = image_g[i*imageW + j].magn_y;
-			flag = 0;
-			if ((ay <= 0 && ax > -ay) || (ay >= 0 && ax < -ay)) {
-				d = abs(ay / ax);
-				grad1 = image_g[i*imageW + j + 1].gtheta*(1 - d) +
-					image_g[(i - 1)*imageW + j + 1].gtheta*d;
-				grad2 = image_g[i*imageW + j - 1].gtheta*(1 - d) +
-					image_g[(i + 1)*imageW + j - 1].gtheta*d;
-				flag = 1;
-			}
-			else if ((ax > 0 && -ay >= ax) || (ax<0 && -ay <= ax)) {
-				d = abs(ax / ay);
-				grad1 = image_g[(i - 1)*imageW + j].gtheta*(1 - d) +
-					image_g[(i - 1)*imageW + j + 1].gtheta*d;
-				grad2 = image_g[(i + 1)*imageW + j].gtheta*(1 - d) +
-					image_g[(i + 1)*imageW + j - 1].gtheta*d;
-				flag = 1;
-			}
-			else if ((ax <= 0 && ax>ay) || (ax >= 0 && ax < ay)){
-				d = abs(ax / ay);
-				grad1 = image_g[(i - 1)*imageW + j].gtheta*(1 - d) +
-					image_g[(i - 1)*imageW + j - 1].gtheta*d;
-				grad2 = image_g[(i + 1)*imageW + j].gtheta*(1 - d) +
-					image_g[(i + 1)*imageW + j + 1].gtheta*d;
-				flag = 1;
-			}
-			else if ((ay < 0 && ax <= ay) || (ay>0 && ax >= ay)) {
-				d = abs(ay / ax);
-				grad1 = image_g[i*imageW + j - 1].gtheta*(1 - d) +
-					image_g[(i - 1)*imageW + j - 1].gtheta*d;
-				grad2 = image_g[i*imageW + j + 1].gtheta*(1 - d) +
-					image_g[(i + 1)*imageW + j + 1].gtheta*d;
-				flag = 1;
-			}
-	
-			if (image_g[i*imageW + j].gtheta >= grad1 && image_g[i*imageW + j].gtheta >= grad2 && flag == 1) {
-				localMax[i*imageW + j] = 1;
-				if (image_g[i*imageW + j].gtheta > CANNY_THRESHOLD_1) {
-					weakEdges[i*imageW + j] = 1;
-				}
-				if (image_g[i*imageW + j].gtheta > CANNY_THRESHOLD_2) {
-					strongEdges[i*imageW + j] = 1;
-				}
-			}
-		}
-	}
-
-	for (i = 0; i < imageH; i++) {
-		for (j = 0; j < imageW; j++) {
-			if (strongEdges[i*imageW + j] == 1) {
-				src_gau_R->imageData[i*src_gau_R->widthStep + j] = -1;
-			}
-			else {
-				src_gau_R->imageData[i*src_gau_R->widthStep + j] = 0;
-			}
-			if (weakEdges[i*imageW + j] == 1) {
-				src_gau_G->imageData[i*src_gau_G->widthStep + j] = -1;
-			}
-			else {
-				src_gau_G->imageData[i*src_gau_G->widthStep + j] = 0;
-			}
-		}
-	}
-	cvSaveImage("strongEdges.jpg", src_gau_R);
-	cvSaveImage("weakEdges.jpg", src_gau_G);
-	unsigned char * visited = (unsigned char *)calloc(imageW*imageH, sizeof(unsigned char));
-
-	//make weakedges 0 in borders
-	for (i = 0; i < imageH; i++) {
-		for (j = 0; j < imageW; j++) {
-			if (i == 0 || j == 0 || i == imageH - 1 || j == imageW - 1){
-				weakEdges[i*imageW + j] = 0;
-				strongEdges[i*imageW + j] = 0;
-			}
-		}
-	}
-	int countstrong = 0; 
-	int countweak = 0;
-	int countmax = 0;
-	for (i = 0; i < imageH; i++) {
-		for (j = 0; j < imageW; j++) {
-			if (strongEdges[i*imageW + j] == 1) {
-				countstrong++;
-			}
-			if (weakEdges[i*imageW + j] == 1) {
-				countweak++;
-			}
-			if (localMax[i*imageW + j] == 1) {
-				countmax++;
-			}
-		}
-	}
-
-	//edges are all the weak edges that are 8-connected with a strong edge
-	for (i = 0; i < imageH; i++){
-		for (j = 0; j < imageW; j++) {
-			if (strongEdges[i*imageW + j] == 1) {
-				visited[i*imageW + j] = 1;
-				canny_image[i*imageW + j] = 1;
-				checkneighbors(canny_image, weakEdges, visited, i, j, imageW, imageH);
-			}
-		}
-	}
-
-	//connect 1-pixel gaps
-	connectgaps(canny_image, imageW, imageH);
-
-	//remove the cutted off edges (alone)
-	int k, w;
-	for (i = 1; i < imageH-1; i++){
-		for (j = 1; j < imageW-1; j++) {
-			flag = 0;
-			for (k= -1; k <= 1; k++) {
-				for (w = -1; w <= 1; w++){
-					if (canny_image[(i + k)*imageW + j + w] == 1) {
-						flag = 1;
-					}
-				}
-			}
-			if (flag == 0) {
-				canny_image[i*imageW + j] = 0;
-			}
-		}
-	}
-
-	cvReleaseImage(&src_gau_R);
-	cvReleaseImage(&src_gau_G);
-	cvReleaseImage(&src_gau_B);
-	cvReleaseImage(&src_gau);
-
-	return 0;
-}
-
-int connectgaps(unsigned char * img, int imageW, int imageH) {
-	int i, j;
-	int num_id;
-	for (i = 1; i < imageH - 1; i++) {
-		for (j = 1; j < imageW - 1; j++) {
-			if (img[i*imageW + j] == 0) {
-				num_id = img[(i - 1)*imageW + j - 1] * 1 + img[(i - 1)*imageW + j] * 2 +
-					img[(i - 1)*imageW + j + 1] * 4 + img[i*imageW + j + 1] * 8 +
-					img[(i + 1)*imageW + j + 1] * 16 + img[(i + 1) * imageW + j] * 32 +
-					img[(i + 1)*imageW + j - 1] * 64 + img[i*imageW + j - 1] * 128;
-			}
-			if (num_id == 32 + 2 || num_id == 1 + 4 || num_id == 128 + 8 || num_id == 16 + 64 ||
-				num_id == 2 + 128 || num_id == 128 + 4 || num_id == 2 + 8 || num_id == 1 + 8 ||
-				num_id == 64 + 8 || num_id == 8 + 32 || num_id == 4 + 32 || num_id == 1 + 32 ||
-				num_id == 1 + 16 || num_id == 1 + 64 || num_id == 2 + 64 || num_id == 2 + 16 ||
-				num_id == 4 + 16 || num_id == 32 + 128) {
-					img[i*imageW + j] = 1;
-			}
-			
-		}
-	}
-	return 1;
-}
-	
-
-int checkneighbors(unsigned char * canny, unsigned char * weakEdges, unsigned char *visited, int i, int j, int imageW, int imageH) {
-	//must have borders of weakedges=0
-
-	int k, w;
-
-	for (k = -1; k <= 1; k++) {
-		for (w = -1; w <= 1; w++) {
-			if (k != 0 || w != 0) {
-				if (weakEdges[(i + k) + j + w] == 1 && visited[(i + k)*imageW + j + w] == 0) {
-					visited[(i + k)*imageW + j + w] = 1;
-					canny[(i + k)*imageW + j + w] = 1;
-					checkneighbors(canny, weakEdges, visited, i + k, j + w, imageW, imageH);
-				}
-			}
-		}
-	}
-
-	/*if ((weakEdges[i*imageW + j + 1] == 1) && (j + 1 < imageW) && (visited[i*imageW+j+1]==0)) { //PREPEI NA ELEGKSW TA ORIA APO PRIN
-		visited[i*imageW + j + 1] = 1;
-		canny[i*imageW + j + 1] = 1;
-		checkneighbors(canny, weakEdges, visited, i, j + 1, imageW, imageH);
-	}
-	else if ((weakEdges[(i + 1)*imageW + j] == 1) && (i + 1 < imageH) && (visited[(i+1)*imageW + j] == 0)) {
-		visited[(i+1)*imageW + j] = 1;
-		canny[(i + 1)*imageW + j] = 1;
-		checkneighbors(canny, weakEdges, visited, i + 1, j, imageW, imageH);
-	}
-	else if ((weakEdges[(i + 1)*imageW + j + 1] == 1) && (i + 1 < imageH) && (j + 1< imageW) && (visited[(i+1)*imageW + j + 1] == 0)) {
-		visited[(i+1)*imageW + j + 1] = 1;
-		canny[(i + 1)*imageW + j + 1] = 1;
-		checkneighbors(canny, weakEdges, visited, i + 1, j + 1, imageW, imageH);
-	}
-	else if (weakEdges[(i - 1)*imageW + j] == 1 && (i - 1) >= 0 && (visited[(i-1)*imageW + j] == 0)) {
-		visited[(i-1)*imageW + j] = 1;
-		canny[(i - 1)*imageW + j] = 1;
-		checkneighbors(canny, weakEdges, visited, i - 1, j + 1,imageW,imageH);
-	}
-	else if (weakEdges[(i - 1)*imageW + j - 1] == 1 && i - 1 >= 0 && j + 1 < imageW && (visited[(i - 1)*imageW + j - 1] == 0)) {
-		visited[(i-1)*imageW + j - 1] = 1;
-		canny[(i - 1)*imageW + j - 1] = 1;
-		checkneighbors(canny, weakEdges, visited, i - 1, j - 1, imageW, imageH);
-	}
-	else if (weakEdges[i*imageW + j - 1] == 1 && j - 1 < imageW && (visited[i*imageW + j - 1] == 0)) {
-		visited[i*imageW + j - 1] = 1;
-		canny[i*imageW + j - 1] = 1;
-		checkneighbors(canny, weakEdges, visited, i, j - 1, imageW, imageH);
-	}
-	else if (weakEdges[(i + 1)*imageW + j - 1] == 1 && (i + 1 < imageH) && (j - 1 >= 0) && (visited[(i + 1)*imageW + j - 1] == 0)){
-		visited[(i+1)*imageW + j - 1] = 1;
-		canny[(i+1)*imageW + j - 1] = 1;
-		checkneighbors(canny, weakEdges, visited, i + 1, j - 1, imageW, imageH);
-	} 
-	else if (weakEdges[(i - 1)*imageW + j + 1] == 1 && (i - 1 >= 0) && (j + 1 < imageW) && (visited[(i - 1)*imageW + j + 1] == 0)) {
-		visited[(i - 1)*imageW + j + 1] = 1;
-		canny[(i - 1)*imageW + j + 1] = 1;
-		checkneighbors(canny, weakEdges, visited, i - 1, j + 1, imageW, imageH);
-	}*/
-	return 1;
-}
