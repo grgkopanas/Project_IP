@@ -1059,7 +1059,7 @@ int main(int argc, char *argv[]) {
 			reg=labels_out[i*imageW+j];
 			if (canny[i*edge_Image->widthStep+j]==255) {
 				edge_count[reg]++;
-				if (s_theta[i*imageW+j].s>SHARP_THRESHOLD) {
+				if (sigma[i*imageW+j]>SHARP_THRESHOLD) {
 					regions_sharp_edges[reg]++;
 				}
 				else {
