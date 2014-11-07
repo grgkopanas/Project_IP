@@ -19,11 +19,9 @@
 #define RANGE_BANDWITH 6
 #define MINIMUM_SEGMANTATION_AREA 50
 #define FILENAME "DSC_0027.jpg"
+#define DISTANCE_FROM_CANNY 8
 
 struct g {
-	double gxx;
-	double gyy;
-	double gxy;
 	double gtheta;
 	double magn_x;
 	double magn_y;
@@ -43,6 +41,8 @@ struct laws {
 	int nums[16];
 };
 
+int sobel_y[3][3] = { { 1, 0, -1 }, { 2, 0, -2 }, { 1, 0, -1 } };
+int sobel_x[3][3] = { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } };
 int kernels[14][5][5]={
 					   {{-2,-6,-6,-2,0},{-6,-16,-12,0,3},{-6,-12,0,12,6},{-2,0,12,16,6},{0,2,6,6,2}},//E5L5 + L5E5
 					   {{-2,-4,-4,-4,-2},{-4,0,8,0,-4},{-4,8,24,8,-4},{-4,0,0,0,-4},{-2,-4,-4,-4,-2}},//S5L5 + L5S5
@@ -63,23 +63,89 @@ int kernels[14][5][5]={
 //To DiZenzo de doulevei kala gia kapoion logo
 //#define DIZENZO_DERIVATIVE
 #define SOBEL_DERIVATIVE
-#define DISTANCE_FROM_CANNY 5
 
-sigma * edge_sharpness(	IplImage *derivative_Rx,IplImage *derivative_Gx,
-						IplImage *derivative_Bx,IplImage *derivative_Ry,
-						IplImage *derivative_Gy,IplImage *derivative_By,
-						IplImage *edge_Image);
+
+double * edge_sharpness(	int *derivative_Rx, int *derivative_Gx, int *derivative_Bx,
+						int *derivative_Ry, int *derivative_Gy,
+						int *derivative_By, IplImage *edge_Image);
+
 int checkneighbors(unsigned char * canny, unsigned char * weakEdges, unsigned char *visited, int i, int j, int imageW, int imageH);
 int myCanny(IplImage *src, unsigned char * canny_image);
-int convolution2d(IplImage *padded_32b_R,int i,int j,int laws_num);
+int convolution2d(IplImage *padded_32b,int i,int j,int laws_num);
 int connectgaps(unsigned char * img, int imageW, int imageH);
 
-sigma * edge_sharpness(IplImage *derivative_Rx,IplImage *derivative_Gx,IplImage *derivative_Bx,
-					   IplImage *derivative_Ry,IplImage *derivative_Gy,
-					   IplImage *derivative_By,IplImage *edge_Image) {
+
+int max(int a, int b) {
+	if (a > b) 
+		return a;
+	else
+		return b;
+}
+
+int min(int a, int b) {
+	if (a < b)
+		return a;
+	else
+		return b;
+}
+
+int  distance_maxpoint(g *image_g, int y, int x, int imageH, int imageW, int direction,int limit){
+
+	/*
+	FUNCTION INFO:------distance_maxpoint return the relative distance of the the maximum point around x-limit,y-limit with the x,y point
+						it can search either horizontally(direction == 1) or vertically (direction == 0). When we search horizontally we
+						check the y-magnitude, when we check vertically we check the x-magnitude
+	INPUT:--------------buffer:	the magnitude buffer type g
+						x,y:	the point
+						direction:the direction
+						limit:	the limit of the search
+	OUPUT:--------------return value is the realtive distance of the max with x,y
+	*/
+
+	int i;
+	int max_coor;
+	int distancefrompoint;
 	
-	unsigned char rx,gx,bx,ry,gy,by;
-	float gxx,gyy,gxy,gtheta_a,gtheta_b,theta;
+	if (direction == 0) { 
+		max_coor = y;
+		for (i = max(y - limit, 0); i < min(y + limit, imageH); i++) {
+			if (image_g[i*imageW + x].magn_x>image_g[max_coor*imageW + x].magn_x) {
+				max_coor = i;
+			}
+		}
+		//distancefrompoint = max_coor - limit + (y<limit)*(limit - y);
+		distancefrompoint = max_coor - y;
+	}
+	if (direction == 1) {
+		max_coor = x;
+		for (i = max(x - limit, 0); i < min(x + limit, imageW); i++) {
+			if (image_g[y*imageW + i].magn_y>image_g[y*imageW + max_coor].magn_y) {
+				max_coor = i;
+			}
+		}
+		//distancefrompoint = max_coor - limit + (x<limit)*(limit - x);
+		distancefrompoint = max_coor - x;
+	}
+	return distancefrompoint;
+} 
+
+double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx,
+					   int *derivative_Ry,int *derivative_Gy,
+					   int *derivative_By,IplImage *edge_Image) {
+	
+	/*
+	FUNCTION INFO:------edge_sharpness calculates siga, a value for measuring the sharpness of an edge
+	INPUT:--------------derivative_ChDir:	buffers with the sobel derivatives of the image
+						edge_Image:			Iplbuffer with 0 and 255 values withe the canny detector results
+	OUPUT:--------------sigma:				double buffer with the sigma values
+	MATLAB DIFF:--------The diffrences with Matlab are at 0.01 i believe that the errors exist for 2 reasons, the 
+						FP operations, and some diffrences in the canny points that come from FP operations too
+	*/
+
+
+	int rx,gx,bx,ry,gy,by;
+	int gxx, gyy, gxy;
+	double gtheta_a,gtheta_b,theta,temp;
 	struct g *image_g;
 	int i,j,k;
 
@@ -89,261 +155,168 @@ sigma * edge_sharpness(IplImage *derivative_Rx,IplImage *derivative_Gx,IplImage 
 
 	image_g=(struct g *)malloc(imageW*imageH*sizeof(struct g));
 
-
 	for (i=0;i<imageH;i++) {
 		for (j=0;j<imageW;j++) {
 
-			rx=(unsigned char)derivative_Rx->imageData[i*widthStep+j];
-			gx=(unsigned char)derivative_Gx->imageData[i*widthStep+j];
-			bx=(unsigned char)derivative_Bx->imageData[i*widthStep+j];
-			ry=(unsigned char)derivative_Ry->imageData[i*widthStep+j];
-			gy=(unsigned char)derivative_Gy->imageData[i*widthStep+j];
-			by=(unsigned char)derivative_By->imageData[i*widthStep+j];
-			gxx=(float)(rx*rx + gx*gx + bx*bx);
-			gyy=(float)(ry*ry + gy*gy + by*by);
-			gxy=(float)(rx*ry + gx*gy + rx*ry);
+			rx = derivative_Rx[i*imageW + j];
+			gx = derivative_Gx[i*imageW + j];
+			bx = derivative_Bx[i*imageW + j];
+			ry = derivative_Ry[i*imageW + j];
+			gy = derivative_Gy[i*imageW + j];
+			by = derivative_By[i*imageW + j];
+			gxx = rx*rx + gx*gx + bx*bx;
+			gyy = ry*ry + gy*gy + by*by;
+			gxy = rx*ry + gx*gy + bx*by;
 
-			if ( gxx == 0.0 && gyy == 0.0 ) {
-				theta=0.0;
-			}
-			else {
-				theta=(float)(0.5 * atan( (2*gxy) / (gxx - gyy)));
-			}
-			gtheta_a =(float)	0.5 * ((gxx + gyy) + (gxx - gyy)*
-								cos(2 * theta) + 2 * gxy * sin(2 * theta)); 
-			gtheta_b =(float)	(0.5 * ((gxx + gyy) + (gxx - gyy)*
-								cos(2 * (theta+PI/2)) + 2*gxy*sin(2 * (theta+PI/2))));
-			image_g[i*imageW+j].gxx=sqrt(gxx);
-			image_g[i*imageW+j].gyy=sqrt(gyy);
-			image_g[i*imageW+j].gxy=sqrt(gxy);
-			if (gtheta_a>gtheta_b) {
-				image_g[i*imageW+j].gtheta=sqrt(gtheta_a);
-			}
-			else {
-				image_g[i*imageW+j].gtheta=sqrt(gtheta_b);
-			}
-			image_g[i*imageW+j].theta=theta;
-		}
-	}
-
-	float max_value;
-	int max_idx;
-	int left_end,right_end,up_end,down_end;
-	int tmp1,tmp2;
-	lamda *l=(lamda *)malloc(imageW*imageH*sizeof(lamda));
-
-	for (i=0;i<imageH;i++) {
-		for (j=0;j<imageW;j++) {
-			if ((unsigned char)edge_Image->imageData[i*widthStep+j]==255) {
-				if (image_g[i*imageW+j].gxx>image_g[i*imageW+j].gyy) { //ipologizoume to l kata x else kata y			
-					//vriskoume to megisto tou edge se euros 10 5-aristera-5 deksia v2.0
-					max_value=image_g[i*imageW+j].gxx;
-					max_idx=j;
-					if (j-DISTANCE_FROM_CANNY<0) {
-						tmp1=0;
-					}
-					else {
-						tmp1=j-DISTANCE_FROM_CANNY;
-					}
-					if (j+DISTANCE_FROM_CANNY+1>imageW-1) {
-						tmp2=imageW-1;
-					}
-					else {
-						tmp2=j+DISTANCE_FROM_CANNY+1;
-					}
-
-					for (k=tmp1;k<tmp2;k++) {
-						if (image_g[i*imageW+k].gxx>max_value) {
-							max_value=image_g[i*imageW+k].gxx;
-							max_idx=k;
-						}
-					}
-					if (max_idx==tmp2) {
-						if (tmp2!=imageW) {
-							if (image_g[i*imageW+max_idx].gxx<image_g[i*imageW+max_idx+1].gxx) {
-								edge_Image->imageData[i*edge_Image->widthStep+j]=0; //itan canny error opote to ekana 0
-							}
-						}
-					}
-					else if (max_idx==tmp1) {
-						if (tmp1!=0) {
-							if (image_g[i*imageW+max_idx].gxx<image_g[i*imageW+max_idx-1].gxx) {
-								edge_Image->imageData[i*edge_Image->widthStep+j]=0; //itan canny error opote to ekana 0
-							}
-						}
-					}
-
-
-					left_end=max_idx-1;
-					if (left_end<0) left_end=0;
-					right_end=max_idx+1;
-					if (right_end>imageW-1) right_end=imageW-1;
-					if (left_end>0) {
-						while (!(image_g[i*imageW+left_end].gxx<0.1*max_value) &&  
-							   !(image_g[i*imageW+left_end].gxx-image_g[i*imageW+left_end-1].gxx>0.05*image_g[i*imageW+left_end].gxx)&&left_end>1) {
-		
-							left_end--;
-						}
-					}
-					if (right_end<imageW-1) {
-						while (!(image_g[i*imageW+right_end].gxx<0.1*max_value) &&  
-						!(image_g[i*imageW+right_end].gxx-image_g[i*imageW+right_end+1].gxx>0.05*image_g[i*imageW+right_end].gxx)&&right_end<imageW-2) {
-	
-							right_end++;
-						}
-					}
-					l[i*imageW+j].l=right_end-left_end;
-					l[i*imageW+j].small_end=left_end;
-					l[i*imageW+j].big_end=right_end;
-					l[i*imageW+j].dir=0;
-				}
-				else { //gyy>gxx opote psaxnw katheta
-					max_value=image_g[i*imageW+j].gyy;
-					max_idx=i;
-					
-					if (i-DISTANCE_FROM_CANNY<0) {
-						tmp1=0;
-					}
-					else {
-						tmp1=i-DISTANCE_FROM_CANNY;
-					}
-
-					if (i+DISTANCE_FROM_CANNY+1>imageH-1) {
-						tmp2=imageH-1;
-					}
-					else {
-						tmp2=i+DISTANCE_FROM_CANNY+1;
-					}
-
-					for (k=tmp1;k<tmp2;k++) {
-						if (image_g[k*imageW+j].gyy>max_value) {
-							max_value=image_g[k*imageW+j].gyy;
-							max_idx=k;
-						}
-					}
-
-					if (max_idx==tmp2) {
-						if (tmp2!=imageH) {
-							if (image_g[max_idx*imageW+j].gyy<image_g[(max_idx+1)*imageW+j].gyy) {
-								edge_Image->imageData[i*edge_Image->widthStep+j]=0; //itan canny error opote to ekana 0
-							}
-						}
-					}
-					else if (max_idx==tmp1) {
-						if (tmp1!=0) {
-							if (image_g[max_idx*imageW+j].gyy<image_g[(max_idx-1)*imageW+j].gyy) {
-								edge_Image->imageData[i*edge_Image->widthStep+j]=0; //itan canny error opote to ekana 0
-							}
-						}
-					}
-
-					up_end=max_idx-1;
-					if (up_end<0) up_end=0;
-					down_end=max_idx+1;
-					if (down_end>imageH-1) down_end=imageH-1; 
-					if ( (up_end>0) ) { //prostateyw ton prwto elegxo sto (up_end-1)*imageW+j
-						while (!(image_g[up_end*imageW+j].gyy<0.1*max_value) &&  
-							   !(image_g[up_end*imageW+j].gyy-image_g[(up_end-1)*imageW+j].gyy>0.05*image_g[up_end*imageW+j].gyy)&&up_end>1) { //>1 gia prosatsia sto (up_end-1)*imageW+j
-		
-							up_end--;
-						}
-					}
-					if ( (down_end<imageH-1)) { //prostateyw ton prwto elegxo sto (down_end+1)*imageW+j
-						while (!(image_g[down_end*imageW+i].gyy<0.1*max_value) &&  
-							!(image_g[down_end*imageW+j].gyy-image_g[(down_end+1)*imageW+j].gyy>0.05*image_g[down_end*imageW+j].gyy)&&down_end<imageH-2) {//-2 gia prostasia sto (down_end+1)*imageW+j
-	
-							down_end++;
-						}
-					}
-					l[i*imageW+j].l=down_end-up_end;
-					l[i*imageW+j].small_end=up_end;
-					l[i*imageW+j].big_end=down_end;
-					l[i*imageW+j].dir=1;
-				}
-			}
-			else { //canny=0
-				l[i*imageW+j].l=0;
-				l[i*imageW+j].dir=0;
-				l[i*imageW+j].small_end=0;
-				l[i*imageW+j].big_end=0;
-			}
-		}
-		
-		
-
-	}
-
-	float *l_theta=(float *) malloc (imageH*imageW*(sizeof(float)));
-
-	for (i=0;i<imageH;i++) {
-		for (j=0;j<imageW;j++) {
+			theta = 0.5 * (atan2(2*gxy, gxx - gyy));
 			
-			if (l[i*imageW+j].dir==0) {//xx>yy
-				l_theta[i*imageW+j]=(image_g[i*imageW+j].gxx/image_g[i*imageW+j].gtheta)*l[i*imageW+j].l;
-			}
-			else { //yy>xx
-				l_theta[i*imageW+j]=(image_g[i*imageW+j].gyy/image_g[i*imageW+j].gtheta)*l[i*imageW+j].l;
-			}
+			gtheta_a = 0.5 * ((gxx + gyy) + (gxx - gyy)*
+				cos(2 * theta) + 2 * gxy * sin(2 * theta));
 
-			if (image_g[i*imageW+j].gtheta==0) {
-				l_theta[i*imageW+j]=0;
+			gtheta_b = 0.5 * ((gxx + gyy) + (gxx - gyy)*
+				cos(2 * (theta + PI / 2)) + 2 * gxy*sin(2 * (theta + PI / 2)));
+
+			gtheta_a = sqrt(abs(gtheta_a));
+			gtheta_b = sqrt(abs(gtheta_b));
+
+			if (gtheta_a > gtheta_b) {
+				image_g[i*imageW + j].gtheta = gtheta_a;
+				image_g[i*imageW + j].magn_x = abs(gtheta_a * cos(theta));
+				image_g[i*imageW + j].magn_y = abs(gtheta_a * sin(theta));
+				image_g[i*imageW + j].theta = theta;
+			}
+			else {
+				image_g[i*imageW + j].gtheta = gtheta_b;
+				image_g[i*imageW + j].magn_x = abs((gtheta_b * cos(theta + PI / 2)));
+				image_g[i*imageW + j].magn_y = abs((gtheta_b * sin(theta + PI / 2)));
+				image_g[i*imageW + j].theta = (theta + PI / 2);
 			}
 		}
 	}
-
 	
-	float s;
-	sigma *s_theta=(sigma *)malloc(imageW*imageH*sizeof(sigma));
-	float sum1,sum2;
+	//find	max around canny point
 
-	for (i=0;i<imageH;i++) {
-		for (j=0;j<imageW;j++) {
-			s_theta[i*imageW+j].s=0.0;
-			s_theta[i*imageW+j].dir=0;
+	int *distancefromcanny_x = (int *)calloc(imageW*imageH,sizeof(int));
+	int *distancefromcanny_y = (int *)calloc(imageW*imageH,sizeof(int));
+
+	for (i = 0; i < imageH; i++) {//need to doublecheck the correctness of the calculations below
+		for (j = 0; j < imageW; j++) {
+			if ((unsigned char)edge_Image->imageData[i*widthStep + j] == 255) {
+				distancefromcanny_x[i*imageW + j] = distance_maxpoint(image_g, i, j, imageH, imageW, 0, DISTANCE_FROM_CANNY);
+				distancefromcanny_y[i*imageW + j] = distance_maxpoint(image_g, i, j, imageH, imageW, 1, DISTANCE_FROM_CANNY);
+				if (abs(distancefromcanny_x[i*imageW + j]) + abs(distancefromcanny_y[i*imageW + j]) > 2 * DISTANCE_FROM_CANNY) {
+					edge_Image->imageData[i*widthStep + j] = 0; //we assume its a canny error											
+				}
+			}
 		}
 	}
 
-	for (i=1;i<imageH-1;i++) {//den exei noima na parw ta boundaries afou ta gxx kai gyy einai 0 even if its is a canny point
-		for (j=1;j<imageW-1;j++) {
-			sum1=0;
-			sum2=0;
-			if ((unsigned char)edge_Image->imageData[i*widthStep+j]==0) {
-				s_theta[i*imageW+j].s=0.0;
-				s_theta[i*imageW+j].dir=0;
-			}
-			else if (image_g[i*imageW+j].gxx>=image_g[i*imageW+j].gyy) {
-				for (k=l[i*imageW+j].small_end;k<l[i*imageW+j].big_end;k++){
-					sum1=sum1+image_g[i*imageW+k].gxx*l[i*imageW+k].l*l[i*imageW+k].l;
-					sum2=sum2+image_g[i*imageW+j].gxx;
-					
-				}
-				s=sqrt(sum1/sum2);
-				s_theta[i*imageW+j].s=(image_g[i*imageW+j].gxx/image_g[i*imageW+j].gtheta)*s;
-				s_theta[i*imageW+j].dir=0;
-			}
-			else if (image_g[i*imageW+j].gxx<image_g[i*imageW+j].gyy) {
-				for (k=l[i*imageW+j].small_end;k<l[i*imageW+j].big_end;k++){
-					sum1=sum1+image_g[k*imageW+j].gyy*l[k*imageW+j].l*l[k*imageW+j].l;
-					sum2=sum2+image_g[k*imageW+j].gyy;
-					
-				}
-				s=sqrt(sum1/sum2);
-				s_theta[i*imageW+j].s=(image_g[i*imageW+j].gyy/image_g[i*imageW+j].gtheta)*s;
-				s_theta[i*imageW+j].dir=1;
-			}
-		}
-	}
-	//for debugging purposes only
-		for (i=0;i<imageH;i++) {
-			for (j=0;j<imageW;j++) {
-				if (edge_Image->imageData[edge_Image->widthStep*i+j]==-1) {
-					if (image_g[i*imageW+j].gxx+image_g[i*imageW+j].gxy+image_g[i*imageW+j].gyy==0) {
-						printf("Potition %d %d\n",i,j);
+
+	/*antistoixia metavlitwn matlab me c
+	imgradYdis      -> distancefromcanny_y
+	imgradXdis      -> distancefromcanny_x
+	imgradY         -> image_g[].magn_y
+	imgradX         -> image_g[].magn_x
+	sigmaX,sigmaY   -> sigma
+	p				-> offset
+	*/
+	int i1,j1,offset;
+	double gg,magn_x,magn_y,sum,ssigma,curvelength,temp_pow;
+	double *image_s = (double *)calloc(imageW*imageH, sizeof(double));
+	for (i = 0; i < imageH; i++) {
+		for (j = 0; j < imageW; j++) {
+			if ((unsigned char)edge_Image->imageData[i*widthStep + j] == 255) {
+				if (image_g[i*imageW + j].magn_y >= image_g[i*imageW + j].magn_x) {
+					offset = 0;
+					j1 = j + distancefromcanny_y[i*imageW + j];
+					magn_y = image_g[i*imageW + j1].magn_y;
+					magn_x = image_g[i*imageW + j1].magn_x;
+					gg = magn_y / sqrt(magn_x*magn_x + magn_y*magn_y); //what is magn_xx and magn_y = 0;
+					sum = magn_y;
+					ssigma = 0;
+					curvelength = 0;
+					while (j1 + offset - 1 >= 0) {//
+						if ((image_g[i*imageW + j1 + offset - 1].magn_y > 0.1*magn_y) 
+							&&(image_g[i*imageW + j1 + offset].magn_y - image_g[i*imageW + j1 + offset - 1].magn_y)
+							> 0.05*magn_y) {
+
+							temp_pow = pow((image_g[i*imageW + j1 + offset - 1].magn_y / magn_y) - (image_g[i*imageW + j1 + offset].magn_y / magn_y), 2);
+							curvelength += sqrt(temp_pow + 1);
+							ssigma += image_g[i*imageW + j1 + offset - 1].magn_y * curvelength *curvelength;
+							sum += image_g[i*imageW + j1 + offset - 1].magn_y;
+							offset--;
+						}
+						else {
+							break;
+						}
 					}
+					offset = 0;
+					curvelength = 0;
+					while (j1 + offset + 1 < imageW) {
+						if ((image_g[i*imageW + j1 + offset + 1].magn_y > 0.1*magn_y) &&
+							(image_g[i*imageW + j1 + offset].magn_y - image_g[i*imageW + j1 + offset + 1].magn_y) > 0.05*magn_y) {
+
+							temp_pow = pow((image_g[i*imageW + j1 + offset + 1].magn_y / magn_y) - (image_g[i*imageW + j1 + offset].magn_y / magn_y), 2);
+							curvelength += sqrt(temp_pow + 1);
+							ssigma += image_g[i*imageW + j1 + offset + 1].magn_y * curvelength *curvelength;
+							sum += image_g[i*imageW + j1 + offset + 1].magn_y;
+							offset++;
+						}
+						else {
+							break;
+						}
+					}
+					ssigma = sqrt(ssigma / sum);
+					image_s[i*imageW + j] = ssigma*gg;
+				}
+				if (image_g[i*imageW + j].magn_y < image_g[i*imageW + j].magn_x) {
+					offset = 0;
+					i1 = i + distancefromcanny_x[i*imageW + j];
+					magn_x = image_g[i1*imageW + j].magn_x;
+					magn_y = image_g[i1*imageW + j].magn_y; 
+					gg = magn_x / (magn_y*magn_y + magn_x*magn_x); //gy and magn_x = 0 ?
+					sum = magn_x;
+					curvelength = 0;
+					ssigma = 0;
+					while (i1 + offset - 1 >= 0) {
+						if ((image_g[(i1 + offset - 1)*imageW + j].magn_x > 0.1*magn_x) &&
+							((image_g[(i1 + offset)*imageW + j].magn_x - image_g[(i1 + offset - 1)*imageW + j].magn_x) > 0.05*magn_x)) {
+
+							temp_pow = pow(image_g[(i1 + offset - 1)*imageW + j].magn_x / magn_x - image_g[(i1 + offset)*imageW + j].magn_x / magn_x, 2);
+							curvelength += sqrt(temp_pow + 1);
+							ssigma += image_g[i1 + offset - 1].magn_x * curvelength*curvelength;
+							sum += image_g[i1 + offset - 1].magn_x;
+							offset--;
+						}
+						else {
+							break;
+						}
+					}
+					offset = 0;
+					curvelength = 0;
+					while (i1 + offset + 1 < imageH) {
+						if ((image_g[(i1 + offset + 1)*imageW + j].magn_x > 0.1*magn_x) &&
+							((image_g[(i1 + offset)*imageW + j].magn_x - image_g[(i1 + offset + 1)*imageW + j].magn_x) > 0.05*magn_x)) {
+
+							temp_pow = pow(image_g[(i1 + offset + 1)*imageW + j].magn_x / magn_x - image_g[(i1 + offset)*imageW + j].magn_x / magn_x, 2);
+							curvelength += sqrt(temp_pow + 1);
+							ssigma += image_g[i1 + offset + 1].magn_x * curvelength*curvelength;
+							sum += image_g[i1 + offset + 1].magn_x;
+							offset++;
+						}
+						else {
+							break;
+						}
+					}
+					ssigma = sqrt(ssigma / sum);
+					image_s[i*imageW + j] = ssigma * gg;
 				}
 			}
 		}
-	return s_theta;
+	}
+
+
+	return image_s;
 }
 
 int convolution2d(IplImage *padded_32b,int posy,int posx,int laws_num) {
@@ -362,8 +335,41 @@ int convolution2d(IplImage *padded_32b,int posy,int posx,int laws_num) {
 	return res;
 }
 
+int getSobelvalue_x(IplImage *buffer, int k, int t) {
 
+	/*
+	FUNCTION INFO:-----getSobelvalue_y return the value of a vertical sobel filter at the k,t coordinates
+	INPUT:--------------buffer:	the image buffer where the convolution will be applied
+	OUPUT:--------------return value
+	*/
 
+	int i, j;
+	int res;
+	res = 0;
+	for (i = -1; i <= 1; i++){
+		for (j = -1; j <= 1; j++) {
+			res += CV_IMAGE_ELEM(buffer,unsigned char,k+i,j+t)*sobel_x[i + 1][j + 1];
+		}
+	}
+	return res;
+}
+
+int getSobelvalue_y(IplImage *buffer, int k, int t) {
+	/*
+	FUNCTION INFO:-----getSobelvalue_y return the value of a vertical sobel filter at the k,t coordinates 
+	INPUT:--------------buffer:	the image buffer where the convolution will be applied
+	OUPUT:--------------return value
+	*/
+	int i, j;
+	int res;
+	res = 0;
+	for (i = -1; i <= 1; i++){
+		for (j = -1; j <= 1; j++) {
+			res += CV_IMAGE_ELEM(buffer, unsigned char, k + i, j + t)*sobel_y[i + 1][j + 1];
+		}
+	}
+	return res;
+}
 
 double convolution2d(IplImage *buffer, int posy, int posx, double *mask) {
 	
@@ -548,15 +554,11 @@ int myColorCanny(IplImage *src, unsigned char * canny_image) {
 			by = -By[i*imageW + j];
 			gxx = (rx*rx + gx*gx + bx*bx);
 			gyy = (ry*ry + gy*gy + by*by);
-			gxy = (rx*ry + gx*gy + rx*ry);
+			gxy = (rx*ry + gx*gy + bx*by);
 
-			if (gxx != gxy){
-				temp = (double)(2 * gxy) / (gxx - gyy);
-				theta = 0.5 * (atan(temp));
-			}
-			else {
-				theta = PI / 4;
-			}
+
+			theta = 0.5 * atan2(2*gxy, gxx - gyy);		
+
 
 			gtheta_a = 0.5 * ((gxx + gyy) + (gxx - gyy)*
 				cos(2 * theta) + 2 * gxy * sin(2 * theta));
@@ -569,14 +571,14 @@ int myColorCanny(IplImage *src, unsigned char * canny_image) {
 
 			if (gtheta_a > gtheta_b) {
 				image_g[i*imageW + j].gtheta = gtheta_a;
-				image_g[i*imageW + j].magn_x = gtheta_a * cos(theta);
-				image_g[i*imageW + j].magn_y = gtheta_a * sin(theta);
+				image_g[i*imageW + j].magn_x = abs(gtheta_a * cos(theta));
+				image_g[i*imageW + j].magn_y = abs(gtheta_a * sin(theta));
 				image_g[i*imageW + j].theta = theta;
 			}
 			else {
 				image_g[i*imageW + j].gtheta = gtheta_b;
-				image_g[i*imageW + j].magn_x = (gtheta_b * cos(theta + PI / 2));
-				image_g[i*imageW + j].magn_y = (gtheta_b * sin(theta + PI / 2));
+				image_g[i*imageW + j].magn_x = abs((gtheta_b * cos(theta + PI / 2)));
+				image_g[i*imageW + j].magn_y = abs((gtheta_b * sin(theta + PI / 2)));
 				image_g[i*imageW + j].theta = (theta + PI / 2);
 			}
 		}
@@ -704,7 +706,7 @@ int myColorCanny(IplImage *src, unsigned char * canny_image) {
 		}
 	}
 
-	/* FOR DEBUGGING PURPOSES WE COUNT SOME STUFF
+	/*// FOR DEBUGGING PURPOSES WE COUNT SOME STUFF
 	int countstrong = 0;
 	int countweak = 0;
 	int countmax = 0;
@@ -720,7 +722,7 @@ int myColorCanny(IplImage *src, unsigned char * canny_image) {
 	countmax++;
 	}
 	}
-	} */
+	}*/
 
 	cvReleaseImage(&src_gau_R);
 	cvReleaseImage(&src_gau_G);
@@ -749,7 +751,7 @@ int myColorCanny(IplImage *src, unsigned char * canny_image) {
 int connectgaps(unsigned char * img, int imageW, int imageH) {
 
 	/*
-	FUNCTION INFO:------Connectedgaps fucntion connects 1-pixels gaps in a binary image the function is in-place operation.
+	FUNCTION INFO:------Connectedgaps function connects 1-pixels gaps in a binary image the function is in-place operation.
 	INPUT:--------------An unsigned char pointer to a buffer that has only binary values.
 	OUPUT:--------------Is the same buffer that has the inputs modified in-place.
 	MATLAB DIFFRENCES:--Its the exact same implementation, i believe no error is occured in this function
@@ -847,6 +849,7 @@ int main(int argc, char *argv[]) {
 
 	unsigned char * canny_im = (unsigned char *)calloc(imageW*imageH,sizeof(unsigned char));
 	myColorCanny(original_Image, canny_im);
+
 	for (i = 0; i < imageH; i++) {
 		for (j = 0; j < imageW; j++) {
 			if (canny_im[i*imageW + j] == 1) {
@@ -861,62 +864,43 @@ int main(int argc, char *argv[]) {
 	cvSplit(original_Image,original_B,original_G,original_R,NULL);
 
 #ifdef SOBEL_DERIVATIVE
-	cvSobel(original_R,derivative_Rx,1,0,3);
-	cvSobel(original_B,derivative_Bx,1,0,3);
-	cvSobel(original_G,derivative_Gx,1,0,3);
+	int *Rx, *Ry, *Gx, *Gy, *Bx, *By;
+	IplImage *R_bordered, *G_bordered, *B_bordered;
+	CvPoint b;
+	b.x = 1;
+	b.y = 1;
+	R_bordered = cvCreateImage(cvSize(imageW + 2, imageH + 2), IPL_DEPTH_8U, 1);
+	G_bordered = cvCreateImage(cvSize(imageW + 2, imageH + 2), IPL_DEPTH_8U, 1);
+	B_bordered = cvCreateImage(cvSize(imageW + 2, imageH + 2), IPL_DEPTH_8U, 1);
+	Rx = (int *)malloc(imageW*imageH*sizeof(int));
+	Ry = (int *)malloc(imageW*imageH*sizeof(int));
+	Gx = (int *)malloc(imageW*imageH*sizeof(int));
+	Gy = (int *)malloc(imageW*imageH*sizeof(int));
+	Bx = (int *)malloc(imageW*imageH*sizeof(int));
+	By = (int *)malloc(imageW*imageH*sizeof(int));
+	cvCopyMakeBorder(original_R,R_bordered,b,IPL_BORDER_REPLICATE);
+	cvCopyMakeBorder(original_G,G_bordered,b,IPL_BORDER_REPLICATE);
+	cvCopyMakeBorder(original_B,B_bordered,b,IPL_BORDER_REPLICATE);
 
-	cvSobel(original_R,derivative_Ry,0,1,3);
-	cvSobel(original_B,derivative_By,0,1,3);
-	cvSobel(original_G,derivative_Gy,0,1,3);
+	for (i=0;i<imageH;i++) {
+		for(j=0;j<imageW;j++) {
+			Rx[i*imageW + j] = getSobelvalue_x(R_bordered, i + 1, j + 1);
+			Gx[i*imageW + j] = getSobelvalue_x(G_bordered, i + 1, j + 1);
+			Bx[i*imageW + j] = getSobelvalue_x(B_bordered, i + 1, j + 1);
+			Ry[i*imageW + j] = getSobelvalue_y(R_bordered, i + 1, j + 1);
+			Gy[i*imageW + j] = getSobelvalue_y(G_bordered, i + 1, j + 1);
+			By[i*imageW + j] = getSobelvalue_y(B_bordered, i + 1, j + 1);
+		}
+	}
 
-	cvSaveImage("Rx.jpg",derivative_Rx);
-	cvSaveImage("Bx.jpg",derivative_Bx);
-	cvSaveImage("Gx.jpg",derivative_Gx);
 #endif 
 
-#ifdef DIZENZO_DERIVATIVE
-	for (i=0;i<imageH;i++) {
-		for (j=0;j<imageW;j++) {
-			derivative_Rx->imageData[i*widthStep+j]=0;
-			derivative_Gx->imageData[i*widthStep+j]=0;
-			derivative_Bx->imageData[i*widthStep+j]=0;
-
-			derivative_Ry->imageData[i*widthStep+j]=0;
-			derivative_Gy->imageData[i*widthStep+j]=0;
-			derivative_By->imageData[i*widthStep+j]=0;
-		}
-	}
-
-	for (i=1;i<imageH-1;i++) {
-		for (j=1;j<imageW-1;j++) {
-				derivative_Rx->imageData[i*widthStep+j] = ((uchar)original_R->imageData[i*widthStep + (j+1)] +  (uchar)original_R->imageData[(i+1)*widthStep + (j+1)]
-														  - (uchar)original_R->imageData[i*widthStep + j] - (uchar)original_R->imageData[(i+1)*widthStep + j])/2;
-
-				derivative_Bx->imageData[i*widthStep+j] = ((uchar)original_B->imageData[i*widthStep + (j+1)] +  (uchar)original_B->imageData[(i+1)*widthStep + (j+1)]
-														  - (uchar)original_B->imageData[i*widthStep + j] - (uchar)original_B->imageData[(i+1)*widthStep + j])/2;
-
-				derivative_Gx->imageData[i*widthStep+j] = ((uchar)original_G->imageData[i*widthStep + (j+1)] + (uchar) original_G->imageData[(i+1)*widthStep + (j+1)]
-														  - (uchar)original_G->imageData[i*widthStep + j] - (uchar)original_G->imageData[(i+1)*widthStep + j])/2;
-
-
-				derivative_Ry->imageData[i*widthStep+j] = ((uchar)original_R->imageData[(i+1)*widthStep + j] +  (uchar)original_R->imageData[(i+1)*widthStep + (j+1)]
-														  - (uchar)original_R->imageData[i*widthStep + j] - (uchar)original_R->imageData[i*widthStep + j+1])/2;
-
-				derivative_By->imageData[i*widthStep+j] = ((uchar)original_B->imageData[(i+1)*widthStep + j] +  (uchar)original_B->imageData[(i+1)*widthStep + (j+1)]
-														  - (uchar)original_B->imageData[i*widthStep + j] - (uchar)original_B->imageData[i*widthStep + j+1])/2;
-
-				derivative_Gy->imageData[i*widthStep+j] = ((uchar)original_G->imageData[(i+1)*widthStep + j] +  (uchar)original_G->imageData[(i+1)*widthStep + (j+1)]
-														  - (uchar)original_G->imageData[i*widthStep + j] - (uchar)original_G->imageData[i*widthStep + j+1])/2;
-
-		}
-	}
-#endif
-
-	sigma *s_theta;
-	s_theta=edge_sharpness(derivative_Rx,derivative_Gx,derivative_Bx,derivative_Ry,derivative_Gy,derivative_By,edge_Image);
+	double *sigma;
+	sigma=(double *)calloc(imageW*imageH,sizeof(double));
+	sigma=edge_sharpness(Rx,Gx,Bx,Ry,Gy,By,edge_Image);
 	
-	//COMPUTING LAWS
 
+	//COMPUTING LAWS
 	CvPoint offset;
 	offset.x=2;
 	offset.y=2;
