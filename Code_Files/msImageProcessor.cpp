@@ -3347,10 +3347,11 @@ void msImageProcessor::NewOptimizedFilter1(float sigmaS, float sigmaR)
    {
       for(i=0; i<L; i++)
       {
-         sdata[idxs++] = (i%width)/sigmaS;
-         sdata[idxs++] = (i/width)/sigmaS;
+         sdata[idxs + 0] = (i%width)/sigmaS;
+         sdata[idxs + 1] = (i/width)/sigmaS;
          for (j=0; j<N; j++)
-            sdata[idxs++] = data[idxd++]/sigmaR;
+            sdata[idxs + 2 + j] = data[idxd++]/sigmaR;
+		 idxs = idxs + 44;
       }
    }
    // index the data in the 3d buckets (x, y, L)
@@ -3366,6 +3367,11 @@ void msImageProcessor::NewOptimizedFilter1(float sigmaS, float sigmaR)
    sMins = sMaxs[2] = sdata[2];
    idxs = 2;
    float cval;
+   for (i = 0; i < L * 42; i++) {
+	   if (data[i]/6.0 == -71933680.0) {
+		   idxs=4;
+	   }
+   }
    for(i=0; i<L; i++)
    {
       cval = sdata[idxs];

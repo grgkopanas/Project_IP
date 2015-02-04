@@ -15,6 +15,7 @@
 #define SHARP_THRESHOLD 1.4375
 #define CANNY_THRESHOLD_1 0.0270		
 #define CANNY_THRESHOLD_2 0.0750
+#define SIGMA_THRESHOLD 1.5
 #define SPATIAL_BANDWITH 6
 #define RANGE_BANDWITH 6
 #define MINIMUM_SEGMANTATION_AREA 50
@@ -43,29 +44,42 @@ struct laws {
 
 int sobel_y[3][3] = { { 1, 0, -1 }, { 2, 0, -2 }, { 1, 0, -1 } };
 int sobel_x[3][3] = { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } };
-int kernels[14][5][5]={
-					   {{-2,-6,-6,-2,0},{-6,-16,-12,0,3},{-6,-12,0,12,6},{-2,0,12,16,6},{0,2,6,6,2}},//E5L5 + L5E5
-					   {{-2,-4,-4,-4,-2},{-4,0,8,0,-4},{-4,8,24,8,-4},{-4,0,0,0,-4},{-2,-4,-4,-4,-2}},//S5L5 + L5S5
-					   {{-2,-2,-6,-6,0},{-2,16,12,0,6},{-6,12,0,-12,6},{-6,0,-12,-16,2},{0,6,6,2,2}},//W5L5 + L5W5
-					   {{2,0,12,0,2},{0,-32,0,-32,0},{12,0,72,0,12},{0,-32,0,-32,0},{2,0,12,0,2}},//R5L5 + L5R5
-					   {{1,2,-2,-2,-2},{2,0,-4,0,-2},{-2,-4,0,4,2},{-2,0,4,0,2},{0,2,2,-2,0}},//S5E5 + E5S5
-					   {{2,0,0,0,-2},{0,-8,0,8,0},{0,0,0,0,0},{0,8,0,-8,0},{-2,0,0,0,2}},//W5E5 +E5W5
-					   {{-2,2,-6,6,0},{2,16,-12,0,-6},{-6,-12,0,12,6},{6,0,12,-16,-2},{0,-6,6,-2,2}},//R5E5 + E5R5
-					   {{2,-2,-2,2,0},{-2,0,4,0,-2},{-2,4,0,-4,2},{2,0,-4,0,2},{0,-2,2,2,-2}},//W5S5 + S5W5
-					   {{-2,4,-4,4,0},{4,0,-8,0,4},{-4,0,4,-8,-4},{4,0,-8,0,4},{-2,4,-4,4,0}},//R5S5 + S5R5
-					   {{-2,6,-6,2,0},{6,-16,12,0,-2},{-6,12,0,-12,6},{2,0,-12,16,-6},{0,-2,6,-6,2}},//R5W5 + W5R5
-					   {{2,4,0,-4,-2},{4,8,0,-8,-4},{0,0,0,0,0},{-4,-8,0,8,4},{-2,-4,0,4,2}},//2*E5E5
-					   {{2,0,-4,0,1},{0,0,0,0,0},{-4,0,8,0,-4},{0,0,0,0,0},{2,0,-4,0,2}},//2*S5S5
-					   {{2,-4,0,4,-2},{-4,8,0,-8,4},{0,0,0,0,0},{4,-8,0,8,-4},{-2,4,0,-4,2}},//2*W5W5
-					   {{2,-8,12,-8,2},{-8,32,-48,32,-8},{12,-48,64,-48,12},{-8,32,-48,32,-8},{2,-8,12,-8,2}}//2*R5R5
-					   };
+int kernels1[14][5][5] = {
+		{ { -1,	-4, -6, -4,	-1	},	{ -2, -8, -12, -8, -2 }, { 0, 0, 0, 0, 0 }, { 4, 16, 24, 16, 4 }, { 1, 4, 6, 4, 1 } },//E5L5 
+		{ { -1,	-4, -6, -4,	-1	},	{ 0, 0, 0, 0, 0 }, { 2, 8, 12, 8, 2 }, { 0, 0, 0, 0, 0 }, { -1, -4, -6, -4, -1 } },//S5L5 
+		{ {	-1,	-4, -6, -4,	-1	},	{ 2, 8, 12, 8, 2 }, { 0, 0, 0, 0, 0 }, { -2, -8, -12, -8, -2 }, { 1, 4, 6, 4, 1 } },//W5L5
+		{ {	1,	4,	6,	4,	1	},		{ -4, -16, -24, -16, -4 }, { 6, 24, 36, 24, 6 }, { -4, -16, -24, -16, -4 }, { 1, 4, 6, 4, 1 } },//R5L5
+		{ { 1,	2,	0,	-4,	-1	}, { 0, 0, 0, 0, 0 }, { -2, -4, 0, 8, 2 }, { 0, 0, 0, 0, 0 }, { 1, 2, 0, -4, -1 } },//S5E5
+		{ { 1, 2, 0, -4, -1 }, { -2, -4, 0, 8, 2 }, { 0, 0, 0, 0, 0 }, { 2, 4, 0, -8, -2 }, { -1, -2, 0, 4, 1 } },//W5E5
+		{ { -1, -2, 0, 4, 1 }, { 4, 8, 0, -16, -4 }, { -6, -12, 0, 24, 6 }, { 4, 8, 0, -16, -4 }, { -1, -2, 0, 4, 1 } },//R5E5
+		{ { 1, 0, -2, 0, 1 }, { -2, 0, 4, 0, -2 }, { 0, 0, 0, 0, 0 }, { 2, 0, -4, 0, 2 }, { -1, 0, 2, 0, -1 } },//W5S5
+		{ { -1, 0, 2, 0, -1 }, { 4, 0, -8, 0, 4 }, { -6, 0, 12, 0, -6 }, { 4, 0, -8, 0, 4 }, { -1, 0, 2, 0, -1 } },//R5S5
+		{ { -1, 2, 0, -2, 1 }, { 4, -8, 0, 8, -4 }, { -6, 12, 0, -12, 6 }, { 4, -8, 0, 8, -4 }, { -1, 2, 0, -2, 1 } },//R5W5
+		{ { 1, 2, 0, -4, -1 }, { 2, 4, 0, -8, -2 }, { 0, 0, 0, 0, 0 }, { -4, -8, 0, 16, 4 }, { -1, -2, 0, 4, 1 } },//E5E5
+		{ { 1, 0, -2, 0, 1 }, { 0, 0, 0, 0, 0 }, { -2, 0, 4, 0, -2 }, { 0, 0, 0, 0, 0 }, { 1, 0, -2, 0, 1 } },//S5S5
+		{ { 1, -2, 0, 2, -1 }, { -2, 4, 0, -4, 2 }, { 0, 0, 0, 0, 0 }, { 2, -4, 0, 4, -2 }, { -1, 2, 0, -2, 1 } },//W5W5
+		{ { 1, -4, 6, -4, 1 }, { -4, 16, -24, 16, -4 }, { 6, -24, 36, -24, 6 }, { -4, 16, -24, 16, -4 }, { 1, -4, 6, -4, 1 } }//R5R5
+		};
+int kernels2[14][5][5] = {
+		{ { -1, -2, 0, 4, 1 }, { -4, -8, 0, 16, 4 }, { -6, -12, 0, 24, 6 }, { -4, -8, 0, 16, 4 }, { -1, -2, 0, 4, 1 } }, //L5E5
+		{ { -1, 0, 2, 0, -1 }, { -4, 0, 8, 0, -4 }, { -6, 0, 12, 0, -6 }, { -4, 0, 8, 0, -4 }, { -1, 0, 2, 0, -1 } },	//L5S5
+		{ { -1, 2, 0, -2, 1 }, { -4, 8, 0, -8, 4 }, { -6, 12, 0, -12, 6 }, { -4, 8, 0, -8, 4 }, { -1, 2, 0, -2, 1 } },	//L5W5
+		{ { 1, -4, 6, -4, 1 }, { 4, -16, 24, -16, 4 }, { 6, -24, 36, -24, 6 }, { 4, -16, 24, -16, 4 }, { 1, -4, 6, -4, 1 } },	//L5R5
+		{ { 1, 0, -2, 0, 1 }, { 2, 0, -4, 0, 2 }, { 0, 0, 0, 0, 0 }, { -4, 0, 8, 0, -4 }, { -1, 0, 2, 0, -1 } },	//E5S5
+		{ { 1, -2, 0, 2, -1 }, { 2, -4, 0, 4, -2 }, { 0, 0, 0, 0, 0 }, { -4, 8, 0, -8, 4 }, { -1, 2, 0, -2, 1 } },	//E5W5
+		{ { -1, 4, -6, 4, -1 }, { -2, 8, -12, 8, -2 }, { 0, 0, 0, 0, 0 }, { 4, -16, 24, -16, 4 }, { 1, -4, 6, -4, 1 } },	//E5R5
+		{ { 1, -2, 0, 2, -1 }, { 0, 0, 0, 0, 0 }, { -2, 4, 0, -4, 2 }, { 0, 0, 0, 0, 0 }, { 1, -2, 0, 2, -1 } },	//S5W5
+		{ { -1, 4, -6, 4, -1 }, { 0, 0, 0, 0, 0 }, { 2, -8, 12, -8, 2 }, { 0, 0, 0, 0, 0 }, { -1, 4, -6, 4, -1 } },	//S5R5
+		{ { -1, 4, -6, 4, -1 }, { 2, -8, 12, -8, 2 }, { 0, 0, 0, 0, 0 }, { -2, 8, -12, 8, -2 }, { 1, -4, 6, -4, 1 } },	//W5R5
+		{ { 1, 2, 0, -4, -1 }, { 2, 4, 0, -8, -2 }, { 0, 0, 0, 0, 0 }, { -4, -8, 0, 16, 4 }, { -1, -2, 0, 4, 1 } },//E5E5
+		{ { 1, 0, -2, 0, 1 }, { 0, 0, 0, 0, 0 }, { -2, 0, 4, 0, -2 }, { 0, 0, 0, 0, 0 }, { 1, 0, -2, 0, 1 } },//S5S5
+		{ { 1, -2, 0, 2, -1 }, { -2, 4, 0, -4, 2 }, { 0, 0, 0, 0, 0 }, { 2, -4, 0, 4, -2 }, { -1, 2, 0, -2, 1 } },//W5W5
+		{ { 1, -4, 6, -4, 1 }, { -4, 16, -24, 16, -4 }, { 6, -24, 36, -24, 6 }, { -4, 16, -24, 16, -4 }, { 1, -4, 6, -4, 1 } }//R5R5
+};
 
-//To DiZenzo de doulevei kala gia kapoion logo
-//#define DIZENZO_DERIVATIVE
 #define SOBEL_DERIVATIVE
 
-
-double * edge_sharpness(	int *derivative_Rx, int *derivative_Gx, int *derivative_Bx,
+double * edge_sharpness(int *derivative_Rx, int *derivative_Gx, int *derivative_Bx,
 						int *derivative_Ry, int *derivative_Gy,
 						int *derivative_By, IplImage *edge_Image);
 
@@ -73,7 +87,6 @@ int checkneighbors(unsigned char * canny, unsigned char * weakEdges, unsigned ch
 int myCanny(IplImage *src, unsigned char * canny_image);
 int convolution2d(IplImage *padded_32b,int i,int j,int laws_num);
 int connectgaps(unsigned char * img, int imageW, int imageH);
-
 
 int max(int a, int b) {
 	if (a > b) 
@@ -140,14 +153,15 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 	OUPUT:--------------sigma:				double buffer with the sigma values
 	MATLAB DIFF:--------The diffrences with Matlab are at 0.01 i believe that the errors exist for 2 reasons, the 
 						FP operations, and some diffrences in the canny points that come from FP operations too
+						Also there are not implemented averaging techniques.
 	*/
 
 
 	int rx,gx,bx,ry,gy,by;
 	int gxx, gyy, gxy;
-	double gtheta_a,gtheta_b,theta,temp;
+	double gtheta_a,gtheta_b,theta;
 	struct g *image_g;
-	int i,j,k;
+	int i,j;
 
 	int imageW=edge_Image->width;
 	int imageH=edge_Image->height;
@@ -319,20 +333,42 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 	return image_s;
 }
 
-int convolution2d(IplImage *padded_32b,int posy,int posx,int laws_num) {
+int * manual_thresholding_sigma(double *sigma, int imageW, int imageH, double thr) {
+	int i, j;
+	double temp_sigma;
+	int *sigma_thr = (int *)calloc(imageW*imageH, sizeof(int));
+	for (i = 0; i < imageH; i++) {
+		for (j = 0; j < imageW; j++ ) {
+			temp_sigma = sigma[i*imageW + j];
+			if (temp_sigma != 0) {
+				if (abs(temp_sigma)>thr) {
+					sigma_thr[i*imageW + j] = 2;
+				}
+				else {
+					sigma_thr[i*imageW + j] = 3;
+				}
+			}
+		}
+	}
+	return sigma_thr;
+}
+
+float convolution_laws(IplImage *padded_32b,int posy,int posx,int laws_num) {
 
 	int i,j;
-	int res;
-	res=0;
-	int widthStep=padded_32b->widthStep;
+	float res1,res2;
+	res1 = 0.0;
+	res2 = 0.0;
+	//int widthStep=padded_32b->widthStep;
 
 	for (i = -2; i <= 2; i++) {
 		for (j = -2; j <= 2; j++) {
-			res += padded_32b->imageData[(posy + 2 + i)*widthStep + posx + 2 + j] * kernels[laws_num][i+2][j+2];
+			res1 += CV_IMAGE_ELEM(padded_32b, float, posy + 2 + i, posx + 2 + j)*kernels1[laws_num][i + 2][j + 2];
+			res2 += CV_IMAGE_ELEM(padded_32b, float, posy + 2 + i, posx + 2 + j)*kernels2[laws_num][i + 2][j + 2];
 		}
 	}
 
-	return res;
+	return res1 + res2;
 }
 
 int getSobelvalue_x(IplImage *buffer, int k, int t) {
@@ -541,7 +577,7 @@ int myColorCanny(IplImage *src, unsigned char * canny_image) {
 	struct g * image_g = (struct g *)malloc(imageW*imageH*sizeof(struct g));
 	double rx, gx, bx, ry, gy, by;
 	double gxx, gyy, gxy, theta, gtheta_a, gtheta_b;
-	double temp;
+
 
 
 	for (i = 0; i < imageH; i++) {
@@ -895,62 +931,116 @@ int main(int argc, char *argv[]) {
 
 #endif 
 
+	//CALCULATE SIMGA
 	double *sigma;
-	sigma=(double *)calloc(imageW*imageH,sizeof(double));
 	sigma=edge_sharpness(Rx,Gx,Bx,Ry,Gy,By,edge_Image);
-	
 
+	//MANUAL THRESHOLDING
+	int *sigma_thr;
+	sigma_thr = manual_thresholding_sigma(sigma, imageW, imageH, SIGMA_THRESHOLD);
+	
+	//NORMALIZE IMAGE VALUES FROM 0-255 to 0-1 SINGLE PRECISION
+	IplImage *canon_R, *canon_G, *canon_B;
+	canon_R = cvCreateImage(cvSize(imageW, imageH), IPL_DEPTH_32F, 1);
+	canon_G = cvCreateImage(cvSize(imageW, imageH), IPL_DEPTH_32F, 1);
+	canon_B = cvCreateImage(cvSize(imageW, imageH), IPL_DEPTH_32F, 1);
+	
+	for (i = 0; i < imageH; i++) {
+		for (j = 0; j < imageW; j++) {
+			CV_IMAGE_ELEM(canon_R, float, i, j) = (float)((unsigned char)original_R->imageData[i*original_R->widthStep + j]) / 255;
+			CV_IMAGE_ELEM(canon_G, float, i, j) = (float)((unsigned char)original_G->imageData[i*original_R->widthStep + j]) / 255;
+			CV_IMAGE_ELEM(canon_B, float, i, j) = (float)((unsigned char)original_B->imageData[i*original_R->widthStep + j]) / 255;
+		}
+	}
+		 
 	//COMPUTING LAWS
 	CvPoint offset;
 	offset.x=2;
 	offset.y=2;
-	int *img_laws_R[14],*img_laws_G[14],*img_laws_B[14];
+	float *img_laws_R[14],*img_laws_G[14],*img_laws_B[14];
 	IplImage *padded_R;
 	IplImage *padded_G;
 	IplImage *padded_B;
 
-	
-	padded_R=cvCreateImage(cvSize(original_Image->width+4,original_Image->height+4),8,1);
-	padded_G=cvCreateImage(cvSize(original_Image->width+4,original_Image->height+4),8,1);
-	padded_B=cvCreateImage(cvSize(original_Image->width+4,original_Image->height+4),8,1);
+	padded_R=cvCreateImage(cvSize(original_Image->width+4,original_Image->height+4),IPL_DEPTH_32F,1);
+	padded_G=cvCreateImage(cvSize(original_Image->width+4,original_Image->height+4),IPL_DEPTH_32F,1);
+	padded_B=cvCreateImage(cvSize(original_Image->width+4,original_Image->height+4),IPL_DEPTH_32F,1);
 
-	cvCopyMakeBorder(original_R,padded_R,offset,IPL_BORDER_CONSTANT,cvScalarAll(0));
-	cvCopyMakeBorder(original_G,padded_G,offset,IPL_BORDER_CONSTANT,cvScalarAll(0));
-	cvCopyMakeBorder(original_B,padded_B,offset,IPL_BORDER_CONSTANT,cvScalarAll(0));
+	cvCopyMakeBorder(canon_R,padded_R,offset,IPL_BORDER_REPLICATE);
+	cvCopyMakeBorder(canon_G,padded_G,offset,IPL_BORDER_REPLICATE);
+	cvCopyMakeBorder(canon_B,padded_B,offset,IPL_BORDER_REPLICATE);
 	
 	for (k=0;k<14;k++) {
-		img_laws_R[k]=(int *)malloc(imageW*imageH*sizeof(int));
-		img_laws_G[k]=(int *)malloc(imageW*imageH*sizeof(int));
-		img_laws_B[k]=(int *)malloc(imageW*imageH*sizeof(int));
+		img_laws_R[k]=(float *)malloc(imageW*imageH*sizeof(float));
+		img_laws_G[k]=(float *)malloc(imageW*imageH*sizeof(float));
+		img_laws_B[k]=(float *)malloc(imageW*imageH*sizeof(float));
 		for (i=0;i<imageH;i++) {
 			for (j=0;j<imageW;j++) {
-				img_laws_R[k][i*imageW+j]=convolution2d(padded_R,i,j,k);
-				img_laws_G[k][i*imageW+j]=convolution2d(padded_G,i,j,k);
-				img_laws_B[k][i*imageW+j]=convolution2d(padded_B,i,j,k);
+				img_laws_R[k][i*imageW+j]=convolution_laws(padded_R,i,j,k);
+				img_laws_G[k][i*imageW+j]=convolution_laws(padded_G,i,j,k);
+				img_laws_B[k][i*imageW+j]=convolution_laws(padded_B,i,j,k);
 			}
 		}
 	}
+
+
+	for (k = 0; k < 14;k++) {
+		for (i = 0; i < imageH*imageW; i++){
+			if (img_laws_B[k][i] == -431602080.0) {
+				j= 0;
+			}
+			if (img_laws_G[k][i] == -431602080.0) {
+				j = 0;
+			}
+			if (img_laws_R[k][i] == -431602080.0) {
+				j = 0;
+			}
+		}
+	}
+
 
 	//MEAN SHIFT
 	float * im_arr;
 	unsigned char *rgb_arr;
 	im_arr=(float*)malloc(imageW*imageH*sizeof(float));
 	rgb_arr=(unsigned char *)malloc(3*imageW*imageH*sizeof(unsigned char));
+	float * laws_arr = (float *)malloc(14 * 3 * imageW*imageH*sizeof(float));
 	for (i=0;i<imageH;i++) {
 		for (j=0;j<imageW;j++) {
 			im_arr[i*imageW+j]=(float)((unsigned char)original_Image_bw->imageData[i*original_Image_bw->widthStep+j]);\
-				rgb_arr[i*imageW+3*j]=(unsigned char)original_R->imageData[i*original_R->widthStep+j];
-				rgb_arr[i*imageW+3*j+1]=(unsigned char)original_G->imageData[i*original_R->widthStep+j];
-				rgb_arr[i*imageW+3*j+2]=(unsigned char)original_B->imageData[i*original_R->widthStep+j];
+			rgb_arr[i*imageW+3*j]=(unsigned char)original_R->imageData[i*original_R->widthStep+j];
+			rgb_arr[i*imageW+3*j+1]=(unsigned char)original_G->imageData[i*original_R->widthStep+j];
+			rgb_arr[i*imageW+3*j+2]=(unsigned char)original_B->imageData[i*original_R->widthStep+j];
+			
+			/*for (k = 0; k < 14; k++) {
+				laws_arr[i*imageW * 42 + j * 42 + k + 0] = img_laws_R[k][i*imageW + j];
+				laws_arr[i*imageW * 42 + j * 42 + k + 14] = img_laws_G[k][i*imageW + j];
+				laws_arr[i*imageW * 42 + j * 42 + k + 28] = img_laws_B[k][i*imageW + j];
+			}*/
+		}
+	}
+	
+	
+
+	for (k = 0; k < 14; k++) {
+		for (j = 0; j < imageW; j++) {
+			for (i = 0; i < imageH; i++) {
+				laws_arr[i*imageW*42 + j*42 + 3*k] = img_laws_R[k][i*imageW + j];
+				laws_arr[i*imageW*42 + j*42 + 3*k+1] = img_laws_G[k][i*imageW + j];
+				laws_arr[i*imageW*42 + j*42 + 3*k+2] = img_laws_B[k][i*imageW + j];
+			}
 		}
 	}
 
-	msImageProcessor ms;
-	ms.DefineLInput(im_arr,imageH,imageW,1);
+
+	for (i = 0; i < imageH*imageW * 42; i++){
+		if (laws_arr[i] == -431602080.0) {
+			k = 0;
+		}
+	}
 
 	int steps=2;
 	unsigned int minArea=MINIMUM_SEGMANTATION_AREA;
-	unsigned int N=1; 
 	bool syn=true;
 	unsigned int spBW=SPATIAL_BANDWITH;
 	float fsBW=RANGE_BANDWITH;
@@ -960,11 +1050,19 @@ int main(int argc, char *argv[]) {
 	unsigned int ii;
 	float aij=(float)0.3;//mixture parameter
 	float edgeThr=(float)0.3;
+	int return_val;
     
+	msImageProcessor ms;
+
+	int N = 42;
+	ms.DefineLInput(laws_arr, imageH, imageW, N);
+	//int	N = 1;
+	//ms.DefineLInput(im_arr, w, h, N);
+
     kernelType kern[2] = {DefaultKernelType, DefaultKernelType};
     int P[2] = {DefaultSpatialDimensionality, N};
     float tempH[2] = {1.0, 1.0};
-    ms.DefineKernel(kern, tempH, P, 2); 
+	ms.DefineKernel(kern, tempH, P, 2);
 
 
     float * conf = NULL;//?
@@ -989,7 +1087,7 @@ int main(int argc, char *argv[]) {
         for ( ii = 0 ; ii < w*h; ii++ ) {
             wght[ii] = (grad[ii] > .002) ? aij*grad[ii]+(1-aij)*conf[ii] : 0;
         }
-        ms.SetWeightMap(wght, edgeThr);
+      ms.SetWeightMap(wght, edgeThr);
         if (ms.ErrorStatus)
             printf("edison_wraper:edison","Mean shift set weights: %s", ms.ErrorMessage);
 
@@ -1004,14 +1102,17 @@ int main(int argc, char *argv[]) {
             printf("edison_wraper:edison","Mean shift fuse: %s", ms.ErrorMessage);
     }
 	
-	float * segmluv=(float *) malloc (imageH*imageW*sizeof(float));
+	float * segmluv=(float *) malloc (N*imageH*imageW*sizeof(float));
 	ms.GetRawData(segmluv); //LUV->RBG 1:1 if 1channel
 	int * labels_out=NULL,*MPC_out=NULL;
 	float *modes_out=NULL;
 	int num_regions;
 	num_regions=ms.GetRegions(&labels_out,&modes_out,&MPC_out);
 
+
+	//---------------------NOT DOUBLE CHEKED CODE! USE WITH YOUR OWN RISK---------------------------------------//
 	//CALCULATE THE CLASSIFICATION PROPERTIES avg_region_RGB avg_region_xy avg_region_laws density_edge
+	//calculates the overall density of edges in the image
 	unsigned char * canny=(unsigned char *)edge_Image->imageData;
 	int tmp=0;
 	float avg_density_edge;
@@ -1041,13 +1142,13 @@ int main(int argc, char *argv[]) {
 	int * sum_y=(int *)calloc (num_regions,sizeof(int));
 	int * regions_sharp_edges=(int *)calloc (num_regions,sizeof(int));
 	int * regions_blurred_edges=(int *)calloc (num_regions,sizeof(int));
-	int *sum_laws_R[14],*sum_laws_G[14],*sum_laws_B[14];
+	float *sum_laws_R[14],*sum_laws_G[14],*sum_laws_B[14];
 	float *avg_region_laws_R[14],*avg_region_laws_G[14],*avg_region_laws_B[14];
 
 	for (i=0;i<14;i++) {
-		sum_laws_R[i]=(int*)calloc(num_regions,sizeof(int));
-		sum_laws_G[i]=(int*)calloc(num_regions,sizeof(int));
-		sum_laws_B[i]=(int*)calloc(num_regions,sizeof(int));
+		sum_laws_R[i]=(float*)calloc(num_regions,sizeof(float));
+		sum_laws_G[i]=(float*)calloc(num_regions,sizeof(float));
+		sum_laws_B[i]=(float*)calloc(num_regions,sizeof(float));
 		avg_region_laws_R[i]=(float*)malloc(num_regions*sizeof(float));
 		avg_region_laws_G[i]=(float*)malloc(num_regions*sizeof(float));
 		avg_region_laws_B[i]=(float*)malloc(num_regions*sizeof(float));
@@ -1200,7 +1301,7 @@ int main(int argc, char *argv[]) {
 	int region;
 	for (i=0;i<imageH;i++) {
 		for (j=0;j<imageW;j++) {
-			derivative_Rx->imageData[i*derivative_Rx->widthStep+j]=(char)segmluv[i*imageW+j];
+//			derivative_Rx->imageData[i*derivative_Rx->widthStep+j]=(char)segmluv[i*imageW+j];
 			region=labels_out[i*imageW+j];
 			if (regions[region]==1) {
 				edge_Image->imageData[i*edge_Image->width+j]=-1;
@@ -1218,4 +1319,3 @@ int main(int argc, char *argv[]) {
 //release kai save
 return 0;
 }
-

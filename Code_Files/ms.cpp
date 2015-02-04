@@ -1423,7 +1423,7 @@ void MeanShift::InitializeInput(float *x)
 	int i;
 	for(i = 0; i < L*N; i++)
 		data[i]	= x[i];
-	
+
 	//done.
 	return;
 	
