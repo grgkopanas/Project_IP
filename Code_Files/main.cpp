@@ -353,18 +353,18 @@ int * manual_thresholding_sigma(double *sigma, int imageW, int imageH, double th
 	return sigma_thr;
 }
 
-float convolution_laws(IplImage *padded_32b,int posy,int posx,int laws_num) {
+double convolution_laws(IplImage *padded_64b,int posy,int posx,int laws_num) {
 
 	int i,j;
-	float res1,res2;
+	double res1,res2;
 	res1 = 0.0;
 	res2 = 0.0;
 	//int widthStep=padded_32b->widthStep;
 
 	for (i = -2; i <= 2; i++) {
 		for (j = -2; j <= 2; j++) {
-			res1 += CV_IMAGE_ELEM(padded_32b, float, posy + 2 + i, posx + 2 + j)*kernels1[laws_num][i + 2][j + 2];
-			res2 += CV_IMAGE_ELEM(padded_32b, float, posy + 2 + i, posx + 2 + j)*kernels2[laws_num][i + 2][j + 2];
+			res1 += CV_IMAGE_ELEM(padded_64b, double, posy + 2 + i, posx + 2 + j)*kernels1[laws_num][i + 2][j + 2];
+			res2 += CV_IMAGE_ELEM(padded_64b, double, posy + 2 + i, posx + 2 + j)*kernels2[laws_num][i + 2][j + 2];
 		}
 	}
 
@@ -944,7 +944,6 @@ int main(int argc, char *argv[]) {
 	canon_R = cvCreateImage(cvSize(imageW, imageH), IPL_DEPTH_32F, 1);
 	canon_G = cvCreateImage(cvSize(imageW, imageH), IPL_DEPTH_32F, 1);
 	canon_B = cvCreateImage(cvSize(imageW, imageH), IPL_DEPTH_32F, 1);
-	
 	for (i = 0; i < imageH; i++) {
 		for (j = 0; j < imageW; j++) {
 			CV_IMAGE_ELEM(canon_R, float, i, j) = (float)((unsigned char)original_R->imageData[i*original_R->widthStep + j]) / 255;
@@ -952,92 +951,308 @@ int main(int argc, char *argv[]) {
 			CV_IMAGE_ELEM(canon_B, float, i, j) = (float)((unsigned char)original_B->imageData[i*original_R->widthStep + j]) / 255;
 		}
 	}
-		 
+
+	//CONVERT FROM RGB TO YIQ
+	IplImage *yiq_Y = cvCreateImage(cvSize(imageW, imageH), IPL_DEPTH_64F, 1);
+	IplImage *yiq_I = cvCreateImage(cvSize(imageW, imageH), IPL_DEPTH_64F, 1);
+	IplImage *yiq_Q = cvCreateImage(cvSize(imageW, imageH), IPL_DEPTH_64F, 1);
+
+	float tmp_r, tmp_g, tmp_b;
+	for (i = 0; i < imageH; i++) {
+		for (j = 0; j < imageW; j++) {
+			tmp_r = CV_IMAGE_ELEM(canon_R, float, i, j);
+			tmp_g = CV_IMAGE_ELEM(canon_G, float, i, j);
+			tmp_b = CV_IMAGE_ELEM(canon_B, float, i, j);
+			CV_IMAGE_ELEM(yiq_Y, double, i, j) = 0.299*tmp_r + 0.587*tmp_g + 0.114*tmp_b;
+			CV_IMAGE_ELEM(yiq_I, double, i, j) = 0.596*tmp_r - 0.274*tmp_g - 0.322*tmp_b;
+			CV_IMAGE_ELEM(yiq_Q, double, i, j) = 0.211*tmp_r - 0.523*tmp_g + 0.312*tmp_b;
+		}
+	}
+
 	//COMPUTING LAWS
 	CvPoint offset;
 	offset.x=2;
 	offset.y=2;
-	float *img_laws_R[14],*img_laws_G[14],*img_laws_B[14];
-	IplImage *padded_R;
-	IplImage *padded_G;
-	IplImage *padded_B;
+	double *img_laws_Y[14], *img_laws_I[14], *img_laws_Q[14];
+	IplImage *padded_Y,*padded_I,*padded_Q;
 
-	padded_R=cvCreateImage(cvSize(original_Image->width+4,original_Image->height+4),IPL_DEPTH_32F,1);
-	padded_G=cvCreateImage(cvSize(original_Image->width+4,original_Image->height+4),IPL_DEPTH_32F,1);
-	padded_B=cvCreateImage(cvSize(original_Image->width+4,original_Image->height+4),IPL_DEPTH_32F,1);
+	padded_Y = cvCreateImage(cvSize(original_Image->width + 4, original_Image->height + 4), IPL_DEPTH_64F, 1);
+	padded_I = cvCreateImage(cvSize(original_Image->width + 4, original_Image->height + 4), IPL_DEPTH_64F, 1);
+	padded_Q = cvCreateImage(cvSize(original_Image->width + 4, original_Image->height + 4), IPL_DEPTH_64F, 1);
 
-	cvCopyMakeBorder(canon_R,padded_R,offset,IPL_BORDER_REPLICATE);
-	cvCopyMakeBorder(canon_G,padded_G,offset,IPL_BORDER_REPLICATE);
-	cvCopyMakeBorder(canon_B,padded_B,offset,IPL_BORDER_REPLICATE);
-	
+	CvScalar val;
+	val.val[0] = 0;
+	cvCopyMakeBorder(yiq_Y, padded_Y, offset, IPL_BORDER_CONSTANT, val);
+	cvCopyMakeBorder(yiq_I, padded_I, offset, IPL_BORDER_CONSTANT, val);
+	cvCopyMakeBorder(yiq_Q, padded_Q, offset, IPL_BORDER_CONSTANT, val);
+
+
 	for (k=0;k<14;k++) {
-		img_laws_R[k]=(float *)malloc(imageW*imageH*sizeof(float));
-		img_laws_G[k]=(float *)malloc(imageW*imageH*sizeof(float));
-		img_laws_B[k]=(float *)malloc(imageW*imageH*sizeof(float));
+		img_laws_Y[k] = (double *)malloc(imageW*imageH*sizeof(double));
+		img_laws_I[k] = (double *)malloc(imageW*imageH*sizeof(double));
+		img_laws_Q[k] = (double *)malloc(imageW*imageH*sizeof(double));
 		for (i=0;i<imageH;i++) {
 			for (j=0;j<imageW;j++) {
-				img_laws_R[k][i*imageW+j]=convolution_laws(padded_R,i,j,k);
-				img_laws_G[k][i*imageW+j]=convolution_laws(padded_G,i,j,k);
-				img_laws_B[k][i*imageW+j]=convolution_laws(padded_B,i,j,k);
+				img_laws_Y[k][i*imageW + j] = convolution_laws(padded_Y, i, j, k);
+				img_laws_I[k][i*imageW + j] = convolution_laws(padded_I, i, j, k);
+				img_laws_Q[k][i*imageW + j] = convolution_laws(padded_Q, i, j, k);
 			}
 		}
 	}
-
-
-	for (k = 0; k < 14;k++) {
-		for (i = 0; i < imageH*imageW; i++){
-			if (img_laws_B[k][i] == -431602080.0) {
-				j= 0;
-			}
-			if (img_laws_G[k][i] == -431602080.0) {
-				j = 0;
-			}
-			if (img_laws_R[k][i] == -431602080.0) {
-				j = 0;
-			}
-		}
-	}
-
 
 	//MEAN SHIFT
-	float * im_arr;
+
 	unsigned char *rgb_arr;
-	im_arr=(float*)malloc(imageW*imageH*sizeof(float));
 	rgb_arr=(unsigned char *)malloc(3*imageW*imageH*sizeof(unsigned char));
-	float * laws_arr = (float *)malloc(14 * 3 * imageW*imageH*sizeof(float));
-	for (i=0;i<imageH;i++) {
-		for (j=0;j<imageW;j++) {
-			im_arr[i*imageW+j]=(float)((unsigned char)original_Image_bw->imageData[i*original_Image_bw->widthStep+j]);\
-			rgb_arr[i*imageW+3*j]=(unsigned char)original_R->imageData[i*original_R->widthStep+j];
-			rgb_arr[i*imageW+3*j+1]=(unsigned char)original_G->imageData[i*original_R->widthStep+j];
-			rgb_arr[i*imageW+3*j+2]=(unsigned char)original_B->imageData[i*original_R->widthStep+j];
-			
-			/*for (k = 0; k < 14; k++) {
-				laws_arr[i*imageW * 42 + j * 42 + k + 0] = img_laws_R[k][i*imageW + j];
-				laws_arr[i*imageW * 42 + j * 42 + k + 14] = img_laws_G[k][i*imageW + j];
-				laws_arr[i*imageW * 42 + j * 42 + k + 28] = img_laws_B[k][i*imageW + j];
-			}*/
-		}
-	}
-	
+	float * laws_arr = (float *)malloc(14 * 3 *imageW*imageH*sizeof(float));
+
 	
 
-	for (k = 0; k < 14; k++) {
+//42*531*800
+	/*
+	int cnt = 0;
+	for (i = 0; i < imageH; i++){
 		for (j = 0; j < imageW; j++) {
-			for (i = 0; i < imageH; i++) {
-				laws_arr[i*imageW*42 + j*42 + 3*k] = img_laws_R[k][i*imageW + j];
-				laws_arr[i*imageW*42 + j*42 + 3*k+1] = img_laws_G[k][i*imageW + j];
-				laws_arr[i*imageW*42 + j*42 + 3*k+2] = img_laws_B[k][i*imageW + j];
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_R, unsigned char, i, j);
+			cnt++;
+		}
+		for (j = 0; j < imageW; j++) {
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_G, unsigned char, i, j);
+			cnt++;
+		}
+		for (j = 0; j < imageW; j++) {
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_B, unsigned char, i, j);
+			cnt++;
+		}
+	}
+
+
+	cnt = 0;
+	for (i = 0; i < imageH; i++) {
+		for (k = 0; k < 14; k++) {
+			for (j = 0; j < imageW; j++) {
+				laws_arr[cnt] = img_laws_Y[k][i * imageW + j];
+				cnt++;
+			}
+		}
+		for (k = 0; k < 14; k++){
+			for (j = 0; j < imageW; j++) {
+				laws_arr[cnt] = img_laws_I[k][i * imageW + j];
+				cnt++;
+			}
+		}
+		for (k = 0; k < 14; k++){
+			for (j = 0; j < imageW; j++) {
+				laws_arr[cnt] = img_laws_Q[k][i * imageW + j];
+				cnt++;
 			}
 		}
 	}
+	*/
 
-
-	for (i = 0; i < imageH*imageW * 42; i++){
-		if (laws_arr[i] == -431602080.0) {
-			k = 0;
+//42*800*531
+	/*
+	int cnt = 0;
+	for (j = 0; j < imageW; j++){
+		for (k = 0; k < 14; k++) {
+			for (i = 0; i < imageH; i++){
+				laws_arr[cnt] = img_laws_Y[k][i*imageW + j];
+				cnt++;
+			}
+		}
+		for (k = 0; k < 14; k++) {
+			for (i = 0; i < imageH; i++){
+				laws_arr[cnt] = img_laws_I[k][i*imageW + j];
+				cnt++;
+			}
+		}
+		for (k = 0; k < 14; k++) {
+			for (i = 0; i < imageH; i++){
+				laws_arr[cnt] = img_laws_Q[k][i*imageW + j];
+				cnt++;
+			}
 		}
 	}
+	cnt = 0;
+
+	for (j = 0; j < imageW; j++){
+		for (i = 0; i < imageH; i++){
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_R, unsigned char, i, j);
+			cnt++;
+		}
+		for (i = 0; i < imageH; i++){
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_G, unsigned char, i, j);
+			cnt++;
+		}
+		for (i = 0; i < imageH; i++){
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_B, unsigned char, i, j);
+			cnt++;
+		}
+	}
+	*/
+
+//531*800*42
+	/*
+	int cnt = 0;
+	for (j = 0; j < imageW; j++){
+		for (i = 0; i < imageH; i++) {
+			for (k = 0; k < 14; k++) {
+				laws_arr[cnt] = img_laws_Y[k][i*imageW + j];
+				cnt++;
+			}
+			for (k = 0; k < 14; k++) {
+				laws_arr[cnt] = img_laws_I[k][i*imageW + j];
+				cnt++;
+			}
+			for (k = 0; k < 14; k++) {
+				laws_arr[cnt] = img_laws_Q[k][i*imageW + j];
+				cnt++;
+			}
+		}
+	}
+	cnt = 0;
+	for (j = 0; j < imageW; j++){
+		for (i = 0; i < imageH; i++) {
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_R, unsigned char, i, j);
+			cnt++;
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_G, unsigned char, i, j);
+			cnt++;
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_B, unsigned char, i, j);
+			cnt++;
+		}
+	}
+	*/
+
+//800*531*42 mallon to swsto
+
+	int cnt = 0;
+	for (i = 0; i < imageH; i++){
+		for (j = 0; j < imageW; j++){
+			for (k = 0; k < 14; k++) {
+				laws_arr[cnt] = img_laws_Y[k][i*imageW + j];
+				cnt++;
+			}
+			for (k = 0; k < 14; k++) {
+				laws_arr[cnt] = img_laws_I[k][i*imageW + j];
+				cnt++;
+			}
+			for (k = 0; k < 14; k++) {
+				laws_arr[cnt] = img_laws_Q[k][i*imageW + j];
+				cnt++;
+			}
+		}
+	}
+	cnt = 0;
+	for (i = 0; i < imageH; i++){
+		for (j = 0; j < imageW; j++){
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_R, unsigned char, i, j);
+			cnt++;
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_G, unsigned char, i, j);
+			cnt++;
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_B, unsigned char, i, j);
+			cnt++;
+		}
+	}
+
+
+//800*42*531
+/*
+	int cnt = 0;
+	for (k = 0; k < 14; k++){
+		for (j = 0; j < imageW; j++){
+			for (i = 0; i < imageH; i++){
+				laws_arr[cnt] = img_laws_Y[k][i*imageW + j];
+				cnt++;
+			}
+		}
+	}
+	for (k = 0; k < 14; k++){
+		for (j = 0; j < imageW; j++){
+			for (i = 0; i < imageH; i++){
+				laws_arr[cnt] = img_laws_I[k][i*imageW + j];
+				cnt++;
+			}
+		}
+	}
+	for (k = 0; k < 14; k++){
+		for (j = 0; j < imageW; j++){
+			for (i = 0; i < imageH; i++){
+				laws_arr[cnt] = img_laws_Q[k][i*imageW + j];
+				cnt++;
+			}
+		}
+	}
+	cnt = 0;
+	for (j = 0; j < imageW; j++){
+		for (i = 0; i < imageH; i++){
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_R, unsigned char, i, j);
+			cnt++;
+		}
+	}
+	for (j = 0; j < imageW; j++){
+		for (i = 0; i < imageH; i++){
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_G, unsigned char, i, j);
+			cnt++;
+		}
+	}
+	for (j = 0; j < imageW; j++){
+		for (i = 0; i < imageH; i++){
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_B, unsigned char, i, j);
+			cnt++;
+		}
+	}
+	*/
+
+//531*42*800
+/*
+	int cnt = 0;
+	for (k = 0; k < 14; k++){
+		for (i = 0; i < imageH; i++){
+			for (j = 0; j < imageW; j++){
+				laws_arr[cnt] = img_laws_Y[k][i*imageW + j];
+				cnt++;
+			}
+		}
+	}
+	for (k = 0; k < 14; k++){
+		for (i = 0; i < imageH; i++){
+			for (j = 0; j < imageW; j++){
+				laws_arr[cnt] = img_laws_I[k][i*imageW + j];
+				cnt++;
+			}
+		}
+	}
+	for (k = 0; k < 14; k++){
+		for (i = 0; i < imageH; i++){
+			for (j = 0; j < imageW; j++){
+				laws_arr[cnt] = img_laws_Q[k][i*imageW + j];
+				cnt++;
+			}
+		}
+	}
+	
+	cnt = 0;
+	for (i = 0; i < imageH; i++){
+		for (j = 0; j < imageW; j++){
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_R, unsigned char, i, j);
+			cnt++;
+		}
+	}
+	for (i = 0; i < imageH; i++){
+		for (j = 0; j < imageW; j++){
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_G, unsigned char, i, j);
+			cnt++;
+		}
+	}
+	for (i = 0; i < imageH; i++){
+		for (j = 0; j < imageW; j++){
+			rgb_arr[cnt] = CV_IMAGE_ELEM(original_B, unsigned char, i, j);
+			cnt++;
+		}
+	}
+	*/
+
+
 
 	int steps=2;
 	unsigned int minArea=MINIMUM_SEGMANTATION_AREA;
@@ -1054,44 +1269,43 @@ int main(int argc, char *argv[]) {
     
 	msImageProcessor ms;
 
-	int N = 42;
-	ms.DefineLInput(laws_arr, imageH, imageW, N);
-	//int	N = 1;
-	//ms.DefineLInput(im_arr, w, h, N);
+	unsigned int N = 42;
+	ms.DefineLInput(laws_arr, h, w, N);
 
     kernelType kern[2] = {DefaultKernelType, DefaultKernelType};
     int P[2] = {DefaultSpatialDimensionality, N};
     float tempH[2] = {1.0, 1.0};
 	ms.DefineKernel(kern, tempH, P, 2);
 
-
+	
+	
     float * conf = NULL;//?
     float * grad = NULL;//?
     float * wght = NULL;//?
     
-    if (syn) {
-        /* perform synergistic segmentation */
-        int maps_dim[2] = {w*h, 1};
-        /* allcate memory for confidence and gradient maps */
-        conf = (float *)malloc(w*h*sizeof(float));
+	if (syn) {
+		// perform synergistic segmentation 
+		int maps_dim[2] = { w*h, 1 };
+		// allcate memory for confidence and gradient maps 
+		conf = (float *)malloc(w*h*sizeof(float));
 		grad = (float *)malloc(w*h*sizeof(float));
 
-        BgImage rgbIm;
-        rgbIm.SetImage(rgb_arr, w, h, true);//false bw // true rgb!
-        BgEdgeDetect edgeDetector(grWin);
-        edgeDetector.ComputeEdgeInfo(&rgbIm, conf, grad);
-        
+		BgImage rgbIm;
+		rgbIm.SetImage(rgb_arr, h, w, true);//false bw // true rgb!
+		BgEdgeDetect edgeDetector(grWin);
+		edgeDetector.ComputeEdgeInfo(&rgbIm, conf, grad);
 
-        wght = (float *)malloc(w*h*sizeof(float));
-        
-        for ( ii = 0 ; ii < w*h; ii++ ) {
-            wght[ii] = (grad[ii] > .002) ? aij*grad[ii]+(1-aij)*conf[ii] : 0;
-        }
-      ms.SetWeightMap(wght, edgeThr);
-        if (ms.ErrorStatus)
-            printf("edison_wraper:edison","Mean shift set weights: %s", ms.ErrorMessage);
 
-    }
+		wght = (float *)malloc(w*h*sizeof(float));
+
+		for (ii = 0; ii < w*h; ii++) {
+			wght[ii] = (grad[ii] > .002) ? aij*grad[ii] + (1 - aij)*conf[ii] : 0;
+		}
+		ms.SetWeightMap(wght, edgeThr);
+		if (ms.ErrorStatus)
+			printf("edison_wraper:edison", "Mean shift set weights: %s", ms.ErrorMessage);
+	}
+
 	ms.Filter(spBW, fsBW, MED_SPEEDUP);
     if (ms.ErrorStatus)
         printf("edison_wraper:edison","Mean shift filter: %s", ms.ErrorMessage);
@@ -1102,14 +1316,17 @@ int main(int argc, char *argv[]) {
             printf("edison_wraper:edison","Mean shift fuse: %s", ms.ErrorMessage);
     }
 	
-	float * segmluv=(float *) malloc (N*imageH*imageW*sizeof(float));
-	ms.GetRawData(segmluv); //LUV->RBG 1:1 if 1channel
+
+	float *skata = (float *)malloc(imageW*imageH * 42 * sizeof(float));
+	ms.GetRawData(skata);
+
 	int * labels_out=NULL,*MPC_out=NULL;
 	float *modes_out=NULL;
 	int num_regions;
 	num_regions=ms.GetRegions(&labels_out,&modes_out,&MPC_out);
 
-
+	
+	/*
 	//---------------------NOT DOUBLE CHEKED CODE! USE WITH YOUR OWN RISK---------------------------------------//
 	//CALCULATE THE CLASSIFICATION PROPERTIES avg_region_RGB avg_region_xy avg_region_laws density_edge
 	//calculates the overall density of edges in the image
@@ -1154,7 +1371,7 @@ int main(int argc, char *argv[]) {
 		avg_region_laws_B[i]=(float*)malloc(num_regions*sizeof(float));
 	}
 
-
+	
 	for (i=0;i<imageH;i++) {
 		for (j=0;j<imageW;j++) {
 			reg=labels_out[i*imageW+j];
@@ -1315,7 +1532,7 @@ int main(int argc, char *argv[]) {
 	cvSaveImage("final_selection.jpg",edge_Image);
 
 
-
+	*/
 //release kai save
 return 0;
 }
