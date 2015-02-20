@@ -213,13 +213,15 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 	int *distancefromcanny_x = (int *)calloc(imageW*imageH,sizeof(int));
 	int *distancefromcanny_y = (int *)calloc(imageW*imageH,sizeof(int));
 
+	int debug2=0;
 	for (i = 0; i < imageH; i++) {//need to doublecheck the correctness of the calculations below
 		for (j = 0; j < imageW; j++) {
 			if ((unsigned char)edge_Image->imageData[i*widthStep + j] == 255) {
 				distancefromcanny_x[i*imageW + j] = distance_maxpoint(image_g, i, j, imageH, imageW, 0, DISTANCE_FROM_CANNY);
 				distancefromcanny_y[i*imageW + j] = distance_maxpoint(image_g, i, j, imageH, imageW, 1, DISTANCE_FROM_CANNY);
 				if (abs(distancefromcanny_x[i*imageW + j]) + abs(distancefromcanny_y[i*imageW + j]) > 2 * DISTANCE_FROM_CANNY) {
-					edge_Image->imageData[i*widthStep + j] = 0; //we assume its a canny error											
+					edge_Image->imageData[i*widthStep + j] = 0; //we assume its a canny error	
+					debug2++;
 				}
 			}
 		}
@@ -240,6 +242,9 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 	for (i = 0; i < imageH; i++) {
 		for (j = 0; j < imageW; j++) {
 			if ((unsigned char)edge_Image->imageData[i*widthStep + j] == 255) {
+				if (i == 68 && j == 498) {
+					printf("break");
+				}
 				if (image_g[i*imageW + j].magn_y >= image_g[i*imageW + j].magn_x) {
 					offset = 0;
 					j1 = j + distancefromcanny_y[i*imageW + j];
@@ -252,7 +257,7 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 					while (j1 + offset - 1 >= 0) {//
 						if ((image_g[i*imageW + j1 + offset - 1].magn_y > 0.1*magn_y) 
 							&&(image_g[i*imageW + j1 + offset].magn_y - image_g[i*imageW + j1 + offset - 1].magn_y)
-							> 0.05*magn_y) {
+							> -0.05*magn_y) {
 
 							temp_pow = pow((image_g[i*imageW + j1 + offset - 1].magn_y / magn_y) - (image_g[i*imageW + j1 + offset].magn_y / magn_y), 2);
 							curvelength += sqrt(temp_pow + 1);
@@ -268,7 +273,7 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 					curvelength = 0;
 					while (j1 + offset + 1 < imageW) {
 						if ((image_g[i*imageW + j1 + offset + 1].magn_y > 0.1*magn_y) &&
-							(image_g[i*imageW + j1 + offset].magn_y - image_g[i*imageW + j1 + offset + 1].magn_y) > 0.05*magn_y) {
+							(image_g[i*imageW + j1 + offset].magn_y - image_g[i*imageW + j1 + offset + 1].magn_y) > -0.05*magn_y) {
 
 							temp_pow = pow((image_g[i*imageW + j1 + offset + 1].magn_y / magn_y) - (image_g[i*imageW + j1 + offset].magn_y / magn_y), 2);
 							curvelength += sqrt(temp_pow + 1);
@@ -281,6 +286,9 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 						}
 					}
 					ssigma = sqrt(ssigma / sum);
+					if (ssigma == 0 || gg == 0) {
+						printf("bug");
+					}
 					image_s[i*imageW + j] = ssigma*gg;
 				}
 				if (image_g[i*imageW + j].magn_y < image_g[i*imageW + j].magn_x) {
@@ -294,12 +302,12 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 					ssigma = 0;
 					while (i1 + offset - 1 >= 0) {
 						if ((image_g[(i1 + offset - 1)*imageW + j].magn_x > 0.1*magn_x) &&
-							((image_g[(i1 + offset)*imageW + j].magn_x - image_g[(i1 + offset - 1)*imageW + j].magn_x) > 0.05*magn_x)) {
+							((image_g[(i1 + offset)*imageW + j].magn_x - image_g[(i1 + offset - 1)*imageW + j].magn_x) > -0.05*magn_x)) {
 
 							temp_pow = pow(image_g[(i1 + offset - 1)*imageW + j].magn_x / magn_x - image_g[(i1 + offset)*imageW + j].magn_x / magn_x, 2);
 							curvelength += sqrt(temp_pow + 1);
-							ssigma += image_g[i1 + offset - 1].magn_x * curvelength*curvelength;
-							sum += image_g[i1 + offset - 1].magn_x;
+							ssigma += image_g[(i1 + offset - 1)*imageW+j].magn_x * curvelength*curvelength;
+							sum += image_g[(i1 + offset - 1)*imageW+j].magn_x;
 							offset--;
 						}
 						else {
@@ -310,12 +318,12 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 					curvelength = 0;
 					while (i1 + offset + 1 < imageH) {
 						if ((image_g[(i1 + offset + 1)*imageW + j].magn_x > 0.1*magn_x) &&
-							((image_g[(i1 + offset)*imageW + j].magn_x - image_g[(i1 + offset + 1)*imageW + j].magn_x) > 0.05*magn_x)) {
+							((image_g[(i1 + offset)*imageW + j].magn_x - image_g[(i1 + offset + 1)*imageW + j].magn_x) > -0.05*magn_x)) {
 
 							temp_pow = pow(image_g[(i1 + offset + 1)*imageW + j].magn_x / magn_x - image_g[(i1 + offset)*imageW + j].magn_x / magn_x, 2);
 							curvelength += sqrt(temp_pow + 1);
-							ssigma += image_g[i1 + offset + 1].magn_x * curvelength*curvelength;
-							sum += image_g[i1 + offset + 1].magn_x;
+							ssigma += image_g[(i1 + offset + 1)*imageW+j].magn_x * curvelength*curvelength;
+							sum += image_g[(i1 + offset + 1)*imageW+j].magn_x;
 							offset++;
 						}
 						else {
@@ -323,6 +331,9 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 						}
 					}
 					ssigma = sqrt(ssigma / sum);
+					if (ssigma == 0 || gg == 0) {
+						printf("bug");
+					}
 					image_s[i*imageW + j] = ssigma * gg;
 				}
 			}
@@ -742,8 +753,8 @@ int myColorCanny(IplImage *src, unsigned char * canny_image) {
 		}
 	}
 
-	/*// FOR DEBUGGING PURPOSES WE COUNT SOME STUFF
-	int countstrong = 0;
+	// FOR DEBUGGING PURPOSES WE COUNT SOME STUFF
+	/*int countstrong = 0;
 	int countweak = 0;
 	int countmax = 0;
 	for (i = 0; i < imageH; i++) {
@@ -879,17 +890,16 @@ int main(int argc, char *argv[]) {
 
 	int widthStep = derivative_Rx->widthStep;
 
-	//smoothing before canny, matlab does it automatically, i was using this code before i wrote mycolorcanny
-		/*cvSmooth(original_Image_bw,gaussian_image_bw,CV_GAUSSIAN,7,7,3);
-		cvCanny(gaussian_image_bw,edge_Image,CANNY_THRESHOLD_1,CANNY_THRESHOLD_2,3); */
-
 	unsigned char * canny_im = (unsigned char *)calloc(imageW*imageH,sizeof(unsigned char));
 	myColorCanny(original_Image, canny_im);
 
+
+	int debug1=0;
 	for (i = 0; i < imageH; i++) {
 		for (j = 0; j < imageW; j++) {
 			if (canny_im[i*imageW + j] == 1) {
 				edge_Image->imageData[i*edge_Image->widthStep + j] = -1;
+				debug1++;
 			}
 			else {
 				edge_Image->imageData[i*edge_Image->widthStep + j] = 0;
@@ -934,6 +944,14 @@ int main(int argc, char *argv[]) {
 	//CALCULATE SIMGA
 	double *sigma;
 	sigma=edge_sharpness(Rx,Gx,Bx,Ry,Gy,By,edge_Image);
+	int debug3 = 0;
+	for (i = 0; i < imageH; i++) {
+		for (j = 0; j < imageW; j++) {
+			if (sigma[i*imageW + j] != 0) {
+				debug3++;
+			}
+		}
+	}
 
 	//MANUAL THRESHOLDING
 	int *sigma_thr;
@@ -1006,125 +1024,7 @@ int main(int argc, char *argv[]) {
 	rgb_arr=(unsigned char *)malloc(3*imageW*imageH*sizeof(unsigned char));
 	float * laws_arr = (float *)malloc(14 * 3 *imageW*imageH*sizeof(float));
 
-	
-
-//42*531*800
-	/*
-	int cnt = 0;
-	for (i = 0; i < imageH; i++){
-		for (j = 0; j < imageW; j++) {
-			rgb_arr[cnt] = CV_IMAGE_ELEM(original_R, unsigned char, i, j);
-			cnt++;
-		}
-		for (j = 0; j < imageW; j++) {
-			rgb_arr[cnt] = CV_IMAGE_ELEM(original_G, unsigned char, i, j);
-			cnt++;
-		}
-		for (j = 0; j < imageW; j++) {
-			rgb_arr[cnt] = CV_IMAGE_ELEM(original_B, unsigned char, i, j);
-			cnt++;
-		}
-	}
-
-
-	cnt = 0;
-	for (i = 0; i < imageH; i++) {
-		for (k = 0; k < 14; k++) {
-			for (j = 0; j < imageW; j++) {
-				laws_arr[cnt] = img_laws_Y[k][i * imageW + j];
-				cnt++;
-			}
-		}
-		for (k = 0; k < 14; k++){
-			for (j = 0; j < imageW; j++) {
-				laws_arr[cnt] = img_laws_I[k][i * imageW + j];
-				cnt++;
-			}
-		}
-		for (k = 0; k < 14; k++){
-			for (j = 0; j < imageW; j++) {
-				laws_arr[cnt] = img_laws_Q[k][i * imageW + j];
-				cnt++;
-			}
-		}
-	}
-	*/
-
-//42*800*531
-	/*
-	int cnt = 0;
-	for (j = 0; j < imageW; j++){
-		for (k = 0; k < 14; k++) {
-			for (i = 0; i < imageH; i++){
-				laws_arr[cnt] = img_laws_Y[k][i*imageW + j];
-				cnt++;
-			}
-		}
-		for (k = 0; k < 14; k++) {
-			for (i = 0; i < imageH; i++){
-				laws_arr[cnt] = img_laws_I[k][i*imageW + j];
-				cnt++;
-			}
-		}
-		for (k = 0; k < 14; k++) {
-			for (i = 0; i < imageH; i++){
-				laws_arr[cnt] = img_laws_Q[k][i*imageW + j];
-				cnt++;
-			}
-		}
-	}
-	cnt = 0;
-
-	for (j = 0; j < imageW; j++){
-		for (i = 0; i < imageH; i++){
-			rgb_arr[cnt] = CV_IMAGE_ELEM(original_R, unsigned char, i, j);
-			cnt++;
-		}
-		for (i = 0; i < imageH; i++){
-			rgb_arr[cnt] = CV_IMAGE_ELEM(original_G, unsigned char, i, j);
-			cnt++;
-		}
-		for (i = 0; i < imageH; i++){
-			rgb_arr[cnt] = CV_IMAGE_ELEM(original_B, unsigned char, i, j);
-			cnt++;
-		}
-	}
-	*/
-
-//531*800*42
-	/*
-	int cnt = 0;
-	for (j = 0; j < imageW; j++){
-		for (i = 0; i < imageH; i++) {
-			for (k = 0; k < 14; k++) {
-				laws_arr[cnt] = img_laws_Y[k][i*imageW + j];
-				cnt++;
-			}
-			for (k = 0; k < 14; k++) {
-				laws_arr[cnt] = img_laws_I[k][i*imageW + j];
-				cnt++;
-			}
-			for (k = 0; k < 14; k++) {
-				laws_arr[cnt] = img_laws_Q[k][i*imageW + j];
-				cnt++;
-			}
-		}
-	}
-	cnt = 0;
-	for (j = 0; j < imageW; j++){
-		for (i = 0; i < imageH; i++) {
-			rgb_arr[cnt] = CV_IMAGE_ELEM(original_R, unsigned char, i, j);
-			cnt++;
-			rgb_arr[cnt] = CV_IMAGE_ELEM(original_G, unsigned char, i, j);
-			cnt++;
-			rgb_arr[cnt] = CV_IMAGE_ELEM(original_B, unsigned char, i, j);
-			cnt++;
-		}
-	}
-	*/
-
-//800*531*42 mallon to swsto
-
+//MAP 3D ARRAYS laws and RGB to 1D for the segmentation library
 	int cnt = 0;
 	for (i = 0; i < imageH; i++){
 		for (j = 0; j < imageW; j++){
@@ -1153,105 +1053,6 @@ int main(int argc, char *argv[]) {
 			cnt++;
 		}
 	}
-
-
-//800*42*531
-/*
-	int cnt = 0;
-	for (k = 0; k < 14; k++){
-		for (j = 0; j < imageW; j++){
-			for (i = 0; i < imageH; i++){
-				laws_arr[cnt] = img_laws_Y[k][i*imageW + j];
-				cnt++;
-			}
-		}
-	}
-	for (k = 0; k < 14; k++){
-		for (j = 0; j < imageW; j++){
-			for (i = 0; i < imageH; i++){
-				laws_arr[cnt] = img_laws_I[k][i*imageW + j];
-				cnt++;
-			}
-		}
-	}
-	for (k = 0; k < 14; k++){
-		for (j = 0; j < imageW; j++){
-			for (i = 0; i < imageH; i++){
-				laws_arr[cnt] = img_laws_Q[k][i*imageW + j];
-				cnt++;
-			}
-		}
-	}
-	cnt = 0;
-	for (j = 0; j < imageW; j++){
-		for (i = 0; i < imageH; i++){
-			rgb_arr[cnt] = CV_IMAGE_ELEM(original_R, unsigned char, i, j);
-			cnt++;
-		}
-	}
-	for (j = 0; j < imageW; j++){
-		for (i = 0; i < imageH; i++){
-			rgb_arr[cnt] = CV_IMAGE_ELEM(original_G, unsigned char, i, j);
-			cnt++;
-		}
-	}
-	for (j = 0; j < imageW; j++){
-		for (i = 0; i < imageH; i++){
-			rgb_arr[cnt] = CV_IMAGE_ELEM(original_B, unsigned char, i, j);
-			cnt++;
-		}
-	}
-	*/
-
-//531*42*800
-/*
-	int cnt = 0;
-	for (k = 0; k < 14; k++){
-		for (i = 0; i < imageH; i++){
-			for (j = 0; j < imageW; j++){
-				laws_arr[cnt] = img_laws_Y[k][i*imageW + j];
-				cnt++;
-			}
-		}
-	}
-	for (k = 0; k < 14; k++){
-		for (i = 0; i < imageH; i++){
-			for (j = 0; j < imageW; j++){
-				laws_arr[cnt] = img_laws_I[k][i*imageW + j];
-				cnt++;
-			}
-		}
-	}
-	for (k = 0; k < 14; k++){
-		for (i = 0; i < imageH; i++){
-			for (j = 0; j < imageW; j++){
-				laws_arr[cnt] = img_laws_Q[k][i*imageW + j];
-				cnt++;
-			}
-		}
-	}
-	
-	cnt = 0;
-	for (i = 0; i < imageH; i++){
-		for (j = 0; j < imageW; j++){
-			rgb_arr[cnt] = CV_IMAGE_ELEM(original_R, unsigned char, i, j);
-			cnt++;
-		}
-	}
-	for (i = 0; i < imageH; i++){
-		for (j = 0; j < imageW; j++){
-			rgb_arr[cnt] = CV_IMAGE_ELEM(original_G, unsigned char, i, j);
-			cnt++;
-		}
-	}
-	for (i = 0; i < imageH; i++){
-		for (j = 0; j < imageW; j++){
-			rgb_arr[cnt] = CV_IMAGE_ELEM(original_B, unsigned char, i, j);
-			cnt++;
-		}
-	}
-	*/
-
 
 
 	int steps=2;
@@ -1326,22 +1127,24 @@ int main(int argc, char *argv[]) {
 	num_regions=ms.GetRegions(&labels_out,&modes_out,&MPC_out);
 
 	
-	/*
+	
 	//---------------------NOT DOUBLE CHEKED CODE! USE WITH YOUR OWN RISK---------------------------------------//
 	//CALCULATE THE CLASSIFICATION PROPERTIES avg_region_RGB avg_region_xy avg_region_laws density_edge
 	//calculates the overall density of edges in the image
+
+	//COMPUTE AVERAGE EDGE DENSITY OF THE IMAGE
 	unsigned char * canny=(unsigned char *)edge_Image->imageData;
 	int tmp=0;
 	float avg_density_edge;
 	for (i=0;i<imageH;i++) {
 		for (j=0;j<imageW;j++) {
-			if (canny[i*edge_Image->widthStep+j]==255) {
+			if (sigma_thr[i*edge_Image->widthStep+j]!=0) {
 				tmp++;
 			}
 		}
 	}
 	avg_density_edge=(float)tmp/(imageW*imageH);
-
+	/*
 	int evaluated_regions=0;
 	int reg;
 	float * region_density_edges=(float*)malloc(num_regions*sizeof(float));
