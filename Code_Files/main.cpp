@@ -242,7 +242,7 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 	for (i = 0; i < imageH; i++) {
 		for (j = 0; j < imageW; j++) {
 			if ((unsigned char)edge_Image->imageData[i*widthStep + j] == 255) {
-				if (i == 68 && j == 498) {
+				if (i == 286 && j == 572) {
 					printf("break");
 				}
 				if (image_g[i*imageW + j].magn_y >= image_g[i*imageW + j].magn_x) {
@@ -286,9 +286,6 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 						}
 					}
 					ssigma = sqrt(ssigma / sum);
-					if (ssigma == 0 || gg == 0) {
-						printf("bug");
-					}
 					image_s[i*imageW + j] = ssigma*gg;
 				}
 				if (image_g[i*imageW + j].magn_y < image_g[i*imageW + j].magn_x) {
@@ -296,7 +293,7 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 					i1 = i + distancefromcanny_x[i*imageW + j];
 					magn_x = image_g[i1*imageW + j].magn_x;
 					magn_y = image_g[i1*imageW + j].magn_y; 
-					gg = magn_x / (magn_y*magn_y + magn_x*magn_x); //gy and magn_x = 0 ?
+					gg = magn_x / sqrt(magn_y*magn_y + magn_x*magn_x); //gy and magn_x = 0 ?
 					sum = magn_x;
 					curvelength = 0;
 					ssigma = 0;
@@ -331,9 +328,6 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 						}
 					}
 					ssigma = sqrt(ssigma / sum);
-					if (ssigma == 0 || gg == 0) {
-						printf("bug");
-					}
 					image_s[i*imageW + j] = ssigma * gg;
 				}
 			}
