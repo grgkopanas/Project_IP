@@ -45,11 +45,11 @@ struct laws {
 int sobel_y[3][3] = { { 1, 0, -1 }, { 2, 0, -2 }, { 1, 0, -1 } };
 int sobel_x[3][3] = { { 1, 2, 1 }, { 0, 0, 0 }, { -1, -2, -1 } };
 int kernels1[14][5][5] = {
-		{ { -1,	-4, -6, -4,	-1	},	{ -2, -8, -12, -8, -2 }, { 0, 0, 0, 0, 0 }, { 4, 16, 24, 16, 4 }, { 1, 4, 6, 4, 1 } },//E5L5 
-		{ { -1,	-4, -6, -4,	-1	},	{ 0, 0, 0, 0, 0 }, { 2, 8, 12, 8, 2 }, { 0, 0, 0, 0, 0 }, { -1, -4, -6, -4, -1 } },//S5L5 
-		{ {	-1,	-4, -6, -4,	-1	},	{ 2, 8, 12, 8, 2 }, { 0, 0, 0, 0, 0 }, { -2, -8, -12, -8, -2 }, { 1, 4, 6, 4, 1 } },//W5L5
-		{ {	1,	4,	6,	4,	1	},		{ -4, -16, -24, -16, -4 }, { 6, 24, 36, 24, 6 }, { -4, -16, -24, -16, -4 }, { 1, 4, 6, 4, 1 } },//R5L5
-		{ { 1,	2,	0,	-4,	-1	}, { 0, 0, 0, 0, 0 }, { -2, -4, 0, 8, 2 }, { 0, 0, 0, 0, 0 }, { 1, 2, 0, -4, -1 } },//S5E5
+		{ { -1, -4, -6, -4, -1 }, { -2, -8, -12, -8, -2 }, { 0, 0, 0, 0, 0 }, { 4, 16, 24, 16, 4 }, { 1, 4, 6, 4, 1 } },//E5L5 
+		{ { -1, -4, -6, -4, -1 }, { 0, 0, 0, 0, 0 }, { 2, 8, 12, 8, 2 }, { 0, 0, 0, 0, 0 }, { -1, -4, -6, -4, -1 } },//S5L5 
+		{ { -1, -4, -6, -4, -1 }, { 2, 8, 12, 8, 2 }, { 0, 0, 0, 0, 0 }, { -2, -8, -12, -8, -2 }, { 1, 4, 6, 4, 1 } },//W5L5
+		{ { 1, 4, 6, 4, 1 }, { -4, -16, -24, -16, -4 }, { 6, 24, 36, 24, 6 }, { -4, -16, -24, -16, -4 }, { 1, 4, 6, 4, 1 } },//R5L5
+		{ { 1, 2, 0, -4, -1 }, { 0, 0, 0, 0, 0 }, { -2, -4, 0, 8, 2 }, { 0, 0, 0, 0, 0 }, { 1, 2, 0, -4, -1 } },//S5E5
 		{ { 1, 2, 0, -4, -1 }, { -2, -4, 0, 8, 2 }, { 0, 0, 0, 0, 0 }, { 2, 4, 0, -8, -2 }, { -1, -2, 0, 4, 1 } },//W5E5
 		{ { -1, -2, 0, 4, 1 }, { 4, 8, 0, -16, -4 }, { -6, -12, 0, 24, 6 }, { 4, 8, 0, -16, -4 }, { -1, -2, 0, 4, 1 } },//R5E5
 		{ { 1, 0, -2, 0, 1 }, { -2, 0, 4, 0, -2 }, { 0, 0, 0, 0, 0 }, { 2, 0, -4, 0, 2 }, { -1, 0, 2, 0, -1 } },//W5S5
@@ -59,7 +59,7 @@ int kernels1[14][5][5] = {
 		{ { 1, 0, -2, 0, 1 }, { 0, 0, 0, 0, 0 }, { -2, 0, 4, 0, -2 }, { 0, 0, 0, 0, 0 }, { 1, 0, -2, 0, 1 } },//S5S5
 		{ { 1, -2, 0, 2, -1 }, { -2, 4, 0, -4, 2 }, { 0, 0, 0, 0, 0 }, { 2, -4, 0, 4, -2 }, { -1, 2, 0, -2, 1 } },//W5W5
 		{ { 1, -4, 6, -4, 1 }, { -4, 16, -24, 16, -4 }, { 6, -24, 36, -24, 6 }, { -4, 16, -24, 16, -4 }, { 1, -4, 6, -4, 1 } }//R5R5
-		};
+};
 int kernels2[14][5][5] = {
 		{ { -1, -2, 0, 4, 1 }, { -4, -8, 0, 16, 4 }, { -6, -12, 0, 24, 6 }, { -4, -8, 0, 16, 4 }, { -1, -2, 0, 4, 1 } }, //L5E5
 		{ { -1, 0, 2, 0, -1 }, { -4, 0, 8, 0, -4 }, { -6, 0, 12, 0, -6 }, { -4, 0, 8, 0, -4 }, { -1, 0, 2, 0, -1 } },	//L5S5
@@ -80,16 +80,16 @@ int kernels2[14][5][5] = {
 #define SOBEL_DERIVATIVE
 
 double * edge_sharpness(int *derivative_Rx, int *derivative_Gx, int *derivative_Bx,
-						int *derivative_Ry, int *derivative_Gy,
-						int *derivative_By, IplImage *edge_Image);
+	int *derivative_Ry, int *derivative_Gy,
+	int *derivative_By, IplImage *edge_Image);
 
 int checkneighbors(unsigned char * canny, unsigned char * weakEdges, unsigned char *visited, int i, int j, int imageW, int imageH);
 int myCanny(IplImage *src, unsigned char * canny_image);
-int convolution2d(IplImage *padded_32b,int i,int j,int laws_num);
+int convolution2d(IplImage *padded_32b, int i, int j, int laws_num);
 int connectgaps(unsigned char * img, int imageW, int imageH);
 
 int max(int a, int b) {
-	if (a > b) 
+	if (a > b)
 		return a;
 	else
 		return b;
@@ -102,24 +102,24 @@ int min(int a, int b) {
 		return b;
 }
 
-int  distance_maxpoint(g *image_g, int y, int x, int imageH, int imageW, int direction,int limit){
+int  distance_maxpoint(g *image_g, int y, int x, int imageH, int imageW, int direction, int limit){
 
 	/*
 	FUNCTION INFO:------distance_maxpoint return the relative distance of the the maximum point around x-limit,y-limit with the x,y point
-						it can search either horizontally(direction == 1) or vertically (direction == 0). When we search horizontally we
-						check the y-magnitude, when we check vertically we check the x-magnitude
+	it can search either horizontally(direction == 1) or vertically (direction == 0). When we search horizontally we
+	check the y-magnitude, when we check vertically we check the x-magnitude
 	INPUT:--------------buffer:	the magnitude buffer type g
-						x,y:	the point
-						direction:the direction
-						limit:	the limit of the search
+	x,y:	the point
+	direction:the direction
+	limit:	the limit of the search
 	OUPUT:--------------return value is the realtive distance of the max with x,y
 	*/
 
 	int i;
 	int max_coor;
 	int distancefrompoint;
-	
-	if (direction == 0) { 
+
+	if (direction == 0) {
 		max_coor = y;
 		for (i = max(y - limit, 0); i < min(y + limit, imageH); i++) {
 			if (image_g[i*imageW + x].magn_x>image_g[max_coor*imageW + x].magn_x) {
@@ -140,37 +140,37 @@ int  distance_maxpoint(g *image_g, int y, int x, int imageH, int imageW, int dir
 		distancefrompoint = max_coor - x;
 	}
 	return distancefrompoint;
-} 
+}
 
-double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx,
-					   int *derivative_Ry,int *derivative_Gy,
-					   int *derivative_By,IplImage *edge_Image) {
-	
+double * edge_sharpness(int *derivative_Rx, int *derivative_Gx, int *derivative_Bx,
+	int *derivative_Ry, int *derivative_Gy,
+	int *derivative_By, IplImage *edge_Image) {
+
 	/*
 	FUNCTION INFO:------edge_sharpness calculates siga, a value for measuring the sharpness of an edge
 	INPUT:--------------derivative_ChDir:	buffers with the sobel derivatives of the image
-						edge_Image:			Iplbuffer with 0 and 255 values withe the canny detector results
+	edge_Image:			Iplbuffer with 0 and 255 values withe the canny detector results
 	OUPUT:--------------sigma:				double buffer with the sigma values
-	MATLAB DIFF:--------The diffrences with Matlab are at 0.01 i believe that the errors exist for 2 reasons, the 
-						FP operations, and some diffrences in the canny points that come from FP operations too
-						Also there are not implemented averaging techniques.
+	MATLAB DIFF:--------The diffrences with Matlab are at 0.01 i believe that the errors exist for 2 reasons, the
+	FP operations, and some diffrences in the canny points that come from FP operations too
+	Also there are not implemented averaging techniques.
 	*/
 
 
-	int rx,gx,bx,ry,gy,by;
+	int rx, gx, bx, ry, gy, by;
 	int gxx, gyy, gxy;
-	double gtheta_a,gtheta_b,theta;
+	double gtheta_a, gtheta_b, theta;
 	struct g *image_g;
-	int i,j;
+	int i, j;
 
-	int imageW=edge_Image->width;
-	int imageH=edge_Image->height;
-	int widthStep=edge_Image->widthStep;
+	int imageW = edge_Image->width;
+	int imageH = edge_Image->height;
+	int widthStep = edge_Image->widthStep;
 
-	image_g=(struct g *)malloc(imageW*imageH*sizeof(struct g));
+	image_g = (struct g *)malloc(imageW*imageH*sizeof(struct g));
 
-	for (i=0;i<imageH;i++) {
-		for (j=0;j<imageW;j++) {
+	for (i = 0; i<imageH; i++) {
+		for (j = 0; j<imageW; j++) {
 
 			rx = derivative_Rx[i*imageW + j];
 			gx = derivative_Gx[i*imageW + j];
@@ -182,8 +182,8 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 			gyy = ry*ry + gy*gy + by*by;
 			gxy = rx*ry + gx*gy + bx*by;
 
-			theta = 0.5 * (atan2(2*gxy, gxx - gyy));
-			
+			theta = 0.5 * (atan2(2 * gxy, gxx - gyy));
+
 			gtheta_a = 0.5 * ((gxx + gyy) + (gxx - gyy)*
 				cos(2 * theta) + 2 * gxy * sin(2 * theta));
 
@@ -207,13 +207,13 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 			}
 		}
 	}
-	
+
 	//find	max around canny point
 
-	int *distancefromcanny_x = (int *)calloc(imageW*imageH,sizeof(int));
-	int *distancefromcanny_y = (int *)calloc(imageW*imageH,sizeof(int));
+	int *distancefromcanny_x = (int *)calloc(imageW*imageH, sizeof(int));
+	int *distancefromcanny_y = (int *)calloc(imageW*imageH, sizeof(int));
 
-	int debug2=0;
+	int debug2 = 0;
 	for (i = 0; i < imageH; i++) {//need to doublecheck the correctness of the calculations below
 		for (j = 0; j < imageW; j++) {
 			if ((unsigned char)edge_Image->imageData[i*widthStep + j] == 255) {
@@ -236,15 +236,12 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 	sigmaX,sigmaY   -> sigma
 	p				-> offset
 	*/
-	int i1,j1,offset;
-	double gg,magn_x,magn_y,sum,ssigma,curvelength,temp_pow;
+	int i1, j1, offset;
+	double gg, magn_x, magn_y, sum, ssigma, curvelength, temp_pow;
 	double *image_s = (double *)calloc(imageW*imageH, sizeof(double));
 	for (i = 0; i < imageH; i++) {
 		for (j = 0; j < imageW; j++) {
 			if ((unsigned char)edge_Image->imageData[i*widthStep + j] == 255) {
-				if (i == 286 && j == 572) {
-					printf("break");
-				}
 				if (image_g[i*imageW + j].magn_y >= image_g[i*imageW + j].magn_x) {
 					offset = 0;
 					j1 = j + distancefromcanny_y[i*imageW + j];
@@ -255,9 +252,9 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 					ssigma = 0;
 					curvelength = 0;
 					while (j1 + offset - 1 >= 0) {//
-						if ((image_g[i*imageW + j1 + offset - 1].magn_y > 0.1*magn_y) 
-							&&(image_g[i*imageW + j1 + offset].magn_y - image_g[i*imageW + j1 + offset - 1].magn_y)
-							> -0.05*magn_y) {
+						if ((image_g[i*imageW + j1 + offset - 1].magn_y > 0.1*magn_y)
+							&& (image_g[i*imageW + j1 + offset].magn_y - image_g[i*imageW + j1 + offset - 1].magn_y)
+	> -0.05*magn_y) {
 
 							temp_pow = pow((image_g[i*imageW + j1 + offset - 1].magn_y / magn_y) - (image_g[i*imageW + j1 + offset].magn_y / magn_y), 2);
 							curvelength += sqrt(temp_pow + 1);
@@ -292,7 +289,7 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 					offset = 0;
 					i1 = i + distancefromcanny_x[i*imageW + j];
 					magn_x = image_g[i1*imageW + j].magn_x;
-					magn_y = image_g[i1*imageW + j].magn_y; 
+					magn_y = image_g[i1*imageW + j].magn_y;
 					gg = magn_x / sqrt(magn_y*magn_y + magn_x*magn_x); //gy and magn_x = 0 ?
 					sum = magn_x;
 					curvelength = 0;
@@ -303,8 +300,8 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 
 							temp_pow = pow(image_g[(i1 + offset - 1)*imageW + j].magn_x / magn_x - image_g[(i1 + offset)*imageW + j].magn_x / magn_x, 2);
 							curvelength += sqrt(temp_pow + 1);
-							ssigma += image_g[(i1 + offset - 1)*imageW+j].magn_x * curvelength*curvelength;
-							sum += image_g[(i1 + offset - 1)*imageW+j].magn_x;
+							ssigma += image_g[(i1 + offset - 1)*imageW + j].magn_x * curvelength*curvelength;
+							sum += image_g[(i1 + offset - 1)*imageW + j].magn_x;
 							offset--;
 						}
 						else {
@@ -319,8 +316,8 @@ double * edge_sharpness(int *derivative_Rx,int *derivative_Gx,int *derivative_Bx
 
 							temp_pow = pow(image_g[(i1 + offset + 1)*imageW + j].magn_x / magn_x - image_g[(i1 + offset)*imageW + j].magn_x / magn_x, 2);
 							curvelength += sqrt(temp_pow + 1);
-							ssigma += image_g[(i1 + offset + 1)*imageW+j].magn_x * curvelength*curvelength;
-							sum += image_g[(i1 + offset + 1)*imageW+j].magn_x;
+							ssigma += image_g[(i1 + offset + 1)*imageW + j].magn_x * curvelength*curvelength;
+							sum += image_g[(i1 + offset + 1)*imageW + j].magn_x;
 							offset++;
 						}
 						else {
@@ -343,7 +340,7 @@ int * manual_thresholding_sigma(double *sigma, int imageW, int imageH, double th
 	double temp_sigma;
 	int *sigma_thr = (int *)calloc(imageW*imageH, sizeof(int));
 	for (i = 0; i < imageH; i++) {
-		for (j = 0; j < imageW; j++ ) {
+		for (j = 0; j < imageW; j++) {
 			temp_sigma = sigma[i*imageW + j];
 			if (temp_sigma != 0) {
 				if (abs(temp_sigma)>thr) {
@@ -358,10 +355,10 @@ int * manual_thresholding_sigma(double *sigma, int imageW, int imageH, double th
 	return sigma_thr;
 }
 
-double convolution_laws(IplImage *padded_64b,int posy,int posx,int laws_num) {
+double convolution_laws(IplImage *padded_64b, int posy, int posx, int laws_num) {
 
-	int i,j;
-	double res1,res2;
+	int i, j;
+	double res1, res2;
 	res1 = 0.0;
 	res2 = 0.0;
 	//int widthStep=padded_32b->widthStep;
@@ -370,6 +367,24 @@ double convolution_laws(IplImage *padded_64b,int posy,int posx,int laws_num) {
 		for (j = -2; j <= 2; j++) {
 			res1 += CV_IMAGE_ELEM(padded_64b, double, posy + 2 + i, posx + 2 + j)*kernels1[laws_num][i + 2][j + 2];
 			res2 += CV_IMAGE_ELEM(padded_64b, double, posy + 2 + i, posx + 2 + j)*kernels2[laws_num][i + 2][j + 2];
+		}
+	}
+
+	return res1 + res2;
+}
+
+int convolution_laws_int(IplImage *padded_img, int posy, int posx, int laws_num) {
+
+	int i, j;
+	int res1, res2;
+	res1 = 0;
+	res2 = 0;
+
+
+	for (i = -2; i <= 2; i++) {
+		for (j = -2; j <= 2; j++) {
+			res1 += ((unsigned char)CV_IMAGE_ELEM(padded_img, unsigned char, posy + 2 + i, posx + 2 + j))*kernels1[laws_num][i + 2][j + 2];
+			res2 += ((unsigned char)CV_IMAGE_ELEM(padded_img, unsigned char, posy + 2 + i, posx + 2 + j))*kernels2[laws_num][i + 2][j + 2];
 		}
 	}
 
@@ -389,7 +404,7 @@ int getSobelvalue_x(IplImage *buffer, int k, int t) {
 	res = 0;
 	for (i = -1; i <= 1; i++){
 		for (j = -1; j <= 1; j++) {
-			res += CV_IMAGE_ELEM(buffer,unsigned char,k+i,j+t)*sobel_x[i + 1][j + 1];
+			res += CV_IMAGE_ELEM(buffer, unsigned char, k + i, j + t)*sobel_x[i + 1][j + 1];
 		}
 	}
 	return res;
@@ -397,7 +412,7 @@ int getSobelvalue_x(IplImage *buffer, int k, int t) {
 
 int getSobelvalue_y(IplImage *buffer, int k, int t) {
 	/*
-	FUNCTION INFO:-----getSobelvalue_y return the value of a vertical sobel filter at the k,t coordinates 
+	FUNCTION INFO:-----getSobelvalue_y return the value of a vertical sobel filter at the k,t coordinates
 	INPUT:--------------buffer:	the image buffer where the convolution will be applied
 	OUPUT:--------------return value
 	*/
@@ -413,23 +428,23 @@ int getSobelvalue_y(IplImage *buffer, int k, int t) {
 }
 
 double convolution2d(IplImage *buffer, int posy, int posx, double *mask) {
-	
+
 	/*
 	FUNCTION INFO:-----convolution2d convolves a mask/kernel with an image at a specific point.
-	INPUT:--------------buffer:		IplImage pointer of the image that has depth, either IPL_DEPTH_64F or IPL_DEPTH_8U 
-						posx,posy:	The potition that convolution will be computed, THE CALLER MUST BE SURE that there are no out of bounds exceptions
-						mask:		The mask/kernel must be 7x7
+	INPUT:--------------buffer:		IplImage pointer of the image that has depth, either IPL_DEPTH_64F or IPL_DEPTH_8U
+	posx,posy:	The potition that convolution will be computed, THE CALLER MUST BE SURE that there are no out of bounds exceptions
+	mask:		The mask/kernel must be 7x7
 	OUPUT:--------------dst: A pointer to double that has to filtered version of img
 	MATLAB DIFFRENCES:--There are diffrence +-0.001 that i believe come from the order of the DP prakseis
 	TODO:---------------Parameterize for diffrent kernel sizes
 	*/
-	
+
 	int i, j;
 	double res;
 
 	res = 0;
 
-	if (buffer->depth==IPL_DEPTH_8U) {
+	if (buffer->depth == IPL_DEPTH_8U) {
 		for (i = -3; i <= 3; i++) {
 			for (j = -3; j <= 3; j++) {
 				res += CV_IMAGE_ELEM(buffer, unsigned char, posy + i, posx + j)* mask[(i + 3) * 7 + j + 3];
@@ -437,7 +452,7 @@ double convolution2d(IplImage *buffer, int posy, int posx, double *mask) {
 		}
 	}
 
-	if (buffer->depth==IPL_DEPTH_64F) {
+	if (buffer->depth == IPL_DEPTH_64F) {
 		for (i = -3; i <= 3; i++) {
 			for (j = -3; j <= 3; j++) {
 				res += CV_IMAGE_ELEM(buffer, double, posy + i, posx + j)* mask[(i + 3) * 7 + j + 3];
@@ -453,9 +468,9 @@ void filter_DP_2d(IplImage *img, double *dst, double *kernel) {
 	/*
 	FUNCTION INFO:-----filter_F_2d takes an IplImage pointer and filters all the image with a 2d float 8x8 kernel taking a double result
 	INPUT:--------------img:	IplImage pointer that has a non-bordered, one channel image. It has to have depth IPL_DEPTH_64F or IPL_DEPTH_8U
-						kernel: double pointer that has an exactly 7x7 kernel, if the kernel is larget we take the middle part, 
-								if it is smaller it crashes
-	OUPUT:--------------dst: A pointer to double that has to filtered version of img 
+	kernel: double pointer that has an exactly 7x7 kernel, if the kernel is larget we take the middle part,
+	if it is smaller it crashes
+	OUPUT:--------------dst: A pointer to double that has to filtered version of img
 	MATLAB DIFFRENCES:--There are diffrence +-0.001 that i believe come from the order of the DP prakseis
 	TODO:---------------Parameterize for diffrent kernel sizes
 	*/
@@ -464,11 +479,11 @@ void filter_DP_2d(IplImage *img, double *dst, double *kernel) {
 	int imageW = img->width;
 	int imageH = img->height;
 	IplImage *img_border;
-	
+
 
 	int type = img->depth;
 	img_border = cvCreateImage(cvSize(img->width + 6, img->height + 6), type, 1);
-	
+
 	CvPoint b;
 	b.x = 3;
 	b.y = 3;
@@ -489,10 +504,10 @@ int myColorCanny(IplImage *src, unsigned char * canny_image) {
 	INPUT:--------------An IplImage pointer with an RGB image
 	OUPUT:--------------A binary image that gives the canny points
 	MATLAB DIFFRENCES:--I believe the only diffrences i have with the matlab code is because
-						of the FP operations (they are done in diffrent order). In the magnitude
-						the fault is +-0.0001, but it gives some diffrent canny points.
+	of the FP operations (they are done in diffrent order). In the magnitude
+	the fault is +-0.0001, but it gives some diffrent canny points.
 	TODO:---------------Parameterize the Gaussian so the "user-programmer" can try diffrent size of gaussian masks
-						and diffrent sigmas.
+	and diffrent sigmas.
 	*/
 
 	IplImage *src_gau_R, *src_gau_G, *src_gau_B, *src_gau;
@@ -554,7 +569,7 @@ int myColorCanny(IplImage *src, unsigned char * canny_image) {
 	double * Ry = (double *)malloc(imageW*imageH*sizeof(double));
 	double * Gy = (double *)malloc(imageW*imageH*sizeof(double));
 	double * By = (double *)malloc(imageW*imageH*sizeof(double));
-	
+
 
 	filter_DP_2d(R_blurred_double, Ry, gau);
 	filter_DP_2d(G_blurred_double, Gy, gau);
@@ -598,7 +613,7 @@ int myColorCanny(IplImage *src, unsigned char * canny_image) {
 			gxy = (rx*ry + gx*gy + bx*by);
 
 
-			theta = 0.5 * atan2(2*gxy, gxx - gyy);		
+			theta = 0.5 * atan2(2 * gxy, gxx - gyy);
 
 
 			gtheta_a = 0.5 * ((gxx + gyy) + (gxx - gyy)*
@@ -828,11 +843,11 @@ int checkneighbors(unsigned char * out_buffer, unsigned char * weakEdges, unsign
 	FUNCTION INFO:------Check neighbors calculates 8-connected objects that start in a specific point and puts 1
 	in the output buffer where the object is.
 	INPUT:--------------weakEdges:	pointer to unsigned char, buffer with the binary picture, MUST HAVE 0 TO THE BORDER!
-						visited:	pointer to unsigned char, buffer that has 1 in place that we have visited or we want to ignore
-						i,j:		the coordinates from a point that our object has.
-						imageW/H:	the size of the weakEdges-visited buffer, they are obligated on the same size
+	visited:	pointer to unsigned char, buffer that has 1 in place that we have visited or we want to ignore
+	i,j:		the coordinates from a point that our object has.
+	imageW/H:	the size of the weakEdges-visited buffer, they are obligated on the same size
 	OUPUT:--------------out_buffer:	pointer to unsigned char, buffer that gets 1 where the object is, CAREFULL if you want to have just
-						the one object it has to be initialized to zero before the function is called.
+	the one object it has to be initialized to zero before the function is called.
 	MATLAB DIFFRENCES:--None that come to my observation.
 	TODO:---------------Nothing.
 	*/
@@ -842,7 +857,7 @@ int checkneighbors(unsigned char * out_buffer, unsigned char * weakEdges, unsign
 	for (k = -1; k <= 1; k++) {
 		for (w = -1; w <= 1; w++) {
 			if (k != 0 || w != 0) {
-				if (weakEdges[(i + k) + j + w] == 1 && visited[(i + k)*imageW + j + w] == 0) {
+				if (weakEdges[(i + k)*imageW + j + w] == 1 && visited[(i + k)*imageW + j + w] == 0) {
 					visited[(i + k)*imageW + j + w] = 1;
 					out_buffer[(i + k)*imageW + j + w] = 1;
 					checkneighbors(out_buffer, weakEdges, visited, i + k, j + w, imageW, imageH);
@@ -856,39 +871,39 @@ int checkneighbors(unsigned char * out_buffer, unsigned char * weakEdges, unsign
 
 int main(int argc, char *argv[]) {
 
-	IplImage *original_Image,*original_Image_bw,*edge_Image,*gaussian_image_bw;
-	IplImage *derivative_Rx,*derivative_Gx,*derivative_Bx;
-	IplImage *derivative_Ry,*derivative_Gy,*derivative_By;
-	IplImage *original_R,*original_B,*original_G;
-	int i,j,k;
-	int imageW,imageH;
+	IplImage *original_Image, *original_Image_bw, *edge_Image, *gaussian_image_bw;
+	IplImage *derivative_Rx, *derivative_Gx, *derivative_Bx;
+	IplImage *derivative_Ry, *derivative_Gy, *derivative_By;
+	IplImage *original_R, *original_B, *original_G;
+	int i, j, k;
+	int imageW, imageH;
 
-	original_Image  = cvLoadImage(FILENAME,1); 
-	original_Image_bw  = cvLoadImage(FILENAME,0);
+	original_Image = cvLoadImage(FILENAME, 1);
+	original_Image_bw = cvLoadImage(FILENAME, 0);
 
-	imageW=original_Image->width;
-	imageH=original_Image->height;
+	imageW = original_Image->width;
+	imageH = original_Image->height;
 
-	gaussian_image_bw = cvCreateImage(cvSize (original_Image->width, original_Image->height), 8, 1); 
-	edge_Image = cvCreateImage (cvSize (original_Image->width, original_Image->height), 8, 1); 
-	original_R = cvCreateImage (cvSize (original_Image->width, original_Image->height), 8, 1);
-	original_G = cvCreateImage (cvSize (original_Image->width, original_Image->height), 8, 1);
-	original_B = cvCreateImage (cvSize (original_Image->width, original_Image->height), 8, 1);
-	derivative_Rx = cvCreateImage (cvSize (original_Image->width, original_Image->height), 8, 1);
-	derivative_Gx = cvCreateImage (cvSize (original_Image->width, original_Image->height), 8, 1);
-	derivative_Bx = cvCreateImage (cvSize (original_Image->width, original_Image->height), 8, 1);
-	derivative_Ry = cvCreateImage (cvSize (original_Image->width, original_Image->height), 8, 1);
-	derivative_Gy = cvCreateImage (cvSize (original_Image->width, original_Image->height), 8, 1);
-	derivative_By = cvCreateImage (cvSize (original_Image->width, original_Image->height), 8, 1);
+	gaussian_image_bw = cvCreateImage(cvSize(original_Image->width, original_Image->height), 8, 1);
+	edge_Image = cvCreateImage(cvSize(original_Image->width, original_Image->height), 8, 1);
+	original_R = cvCreateImage(cvSize(original_Image->width, original_Image->height), 8, 1);
+	original_G = cvCreateImage(cvSize(original_Image->width, original_Image->height), 8, 1);
+	original_B = cvCreateImage(cvSize(original_Image->width, original_Image->height), 8, 1);
+	derivative_Rx = cvCreateImage(cvSize(original_Image->width, original_Image->height), 8, 1);
+	derivative_Gx = cvCreateImage(cvSize(original_Image->width, original_Image->height), 8, 1);
+	derivative_Bx = cvCreateImage(cvSize(original_Image->width, original_Image->height), 8, 1);
+	derivative_Ry = cvCreateImage(cvSize(original_Image->width, original_Image->height), 8, 1);
+	derivative_Gy = cvCreateImage(cvSize(original_Image->width, original_Image->height), 8, 1);
+	derivative_By = cvCreateImage(cvSize(original_Image->width, original_Image->height), 8, 1);
 
 
 	int widthStep = derivative_Rx->widthStep;
 
-	unsigned char * canny_im = (unsigned char *)calloc(imageW*imageH,sizeof(unsigned char));
+	unsigned char * canny_im = (unsigned char *)calloc(imageW*imageH, sizeof(unsigned char));
 	myColorCanny(original_Image, canny_im);
 
 
-	int debug1=0;
+	int debug1 = 0;
 	for (i = 0; i < imageH; i++) {
 		for (j = 0; j < imageW; j++) {
 			if (canny_im[i*imageW + j] == 1) {
@@ -900,8 +915,8 @@ int main(int argc, char *argv[]) {
 			}
 		}
 	}
-	cvSaveImage("mycanny.jpg",edge_Image);
-	cvSplit(original_Image,original_B,original_G,original_R,NULL);
+	cvSaveImage("mycanny.jpg", edge_Image);
+	cvSplit(original_Image, original_B, original_G, original_R, NULL);
 
 #ifdef SOBEL_DERIVATIVE
 	int *Rx, *Ry, *Gx, *Gy, *Bx, *By;
@@ -918,12 +933,12 @@ int main(int argc, char *argv[]) {
 	Gy = (int *)malloc(imageW*imageH*sizeof(int));
 	Bx = (int *)malloc(imageW*imageH*sizeof(int));
 	By = (int *)malloc(imageW*imageH*sizeof(int));
-	cvCopyMakeBorder(original_R,R_bordered,b,IPL_BORDER_REPLICATE);
-	cvCopyMakeBorder(original_G,G_bordered,b,IPL_BORDER_REPLICATE);
-	cvCopyMakeBorder(original_B,B_bordered,b,IPL_BORDER_REPLICATE);
+	cvCopyMakeBorder(original_R, R_bordered, b, IPL_BORDER_REPLICATE);
+	cvCopyMakeBorder(original_G, G_bordered, b, IPL_BORDER_REPLICATE);
+	cvCopyMakeBorder(original_B, B_bordered, b, IPL_BORDER_REPLICATE);
 
-	for (i=0;i<imageH;i++) {
-		for(j=0;j<imageW;j++) {
+	for (i = 0; i<imageH; i++) {
+		for (j = 0; j<imageW; j++) {
 			Rx[i*imageW + j] = getSobelvalue_x(R_bordered, i + 1, j + 1);
 			Gx[i*imageW + j] = getSobelvalue_x(G_bordered, i + 1, j + 1);
 			Bx[i*imageW + j] = getSobelvalue_x(B_bordered, i + 1, j + 1);
@@ -937,20 +952,12 @@ int main(int argc, char *argv[]) {
 
 	//CALCULATE SIMGA
 	double *sigma;
-	sigma=edge_sharpness(Rx,Gx,Bx,Ry,Gy,By,edge_Image);
-	int debug3 = 0;
-	for (i = 0; i < imageH; i++) {
-		for (j = 0; j < imageW; j++) {
-			if (sigma[i*imageW + j] != 0) {
-				debug3++;
-			}
-		}
-	}
+	sigma = edge_sharpness(Rx, Gx, Bx, Ry, Gy, By, edge_Image);
 
 	//MANUAL THRESHOLDING
 	int *sigma_thr;
 	sigma_thr = manual_thresholding_sigma(sigma, imageW, imageH, SIGMA_THRESHOLD);
-	
+
 	//NORMALIZE IMAGE VALUES FROM 0-255 to 0-1 SINGLE PRECISION
 	IplImage *canon_R, *canon_G, *canon_B;
 	canon_R = cvCreateImage(cvSize(imageW, imageH), IPL_DEPTH_32F, 1);
@@ -983,10 +990,10 @@ int main(int argc, char *argv[]) {
 
 	//COMPUTING LAWS
 	CvPoint offset;
-	offset.x=2;
-	offset.y=2;
+	offset.x = 2;
+	offset.y = 2;
 	double *img_laws_Y[14], *img_laws_I[14], *img_laws_Q[14];
-	IplImage *padded_Y,*padded_I,*padded_Q;
+	IplImage *padded_Y, *padded_I, *padded_Q;
 
 	padded_Y = cvCreateImage(cvSize(original_Image->width + 4, original_Image->height + 4), IPL_DEPTH_64F, 1);
 	padded_I = cvCreateImage(cvSize(original_Image->width + 4, original_Image->height + 4), IPL_DEPTH_64F, 1);
@@ -999,12 +1006,12 @@ int main(int argc, char *argv[]) {
 	cvCopyMakeBorder(yiq_Q, padded_Q, offset, IPL_BORDER_CONSTANT, val);
 
 
-	for (k=0;k<14;k++) {
+	for (k = 0; k<14; k++) {
 		img_laws_Y[k] = (double *)malloc(imageW*imageH*sizeof(double));
 		img_laws_I[k] = (double *)malloc(imageW*imageH*sizeof(double));
 		img_laws_Q[k] = (double *)malloc(imageW*imageH*sizeof(double));
-		for (i=0;i<imageH;i++) {
-			for (j=0;j<imageW;j++) {
+		for (i = 0; i<imageH; i++) {
+			for (j = 0; j<imageW; j++) {
 				img_laws_Y[k][i*imageW + j] = convolution_laws(padded_Y, i, j, k);
 				img_laws_I[k][i*imageW + j] = convolution_laws(padded_I, i, j, k);
 				img_laws_Q[k][i*imageW + j] = convolution_laws(padded_Q, i, j, k);
@@ -1015,10 +1022,10 @@ int main(int argc, char *argv[]) {
 	//MEAN SHIFT
 
 	unsigned char *rgb_arr;
-	rgb_arr=(unsigned char *)malloc(3*imageW*imageH*sizeof(unsigned char));
-	float * laws_arr = (float *)malloc(14 * 3 *imageW*imageH*sizeof(float));
+	rgb_arr = (unsigned char *)malloc(3 * imageW*imageH*sizeof(unsigned char));
+	float * laws_arr = (float *)malloc(14 * 3 * imageW*imageH*sizeof(float));
 
-//MAP 3D ARRAYS laws and RGB to 1D for the segmentation library
+	//MAP 3D ARRAYS laws and RGB to 1D for the segmentation library
 	int cnt = 0;
 	for (i = 0; i < imageH; i++){
 		for (j = 0; j < imageW; j++){
@@ -1049,41 +1056,41 @@ int main(int argc, char *argv[]) {
 	}
 
 
-	int steps=2;
-	unsigned int minArea=MINIMUM_SEGMANTATION_AREA;
-	bool syn=true;
-	unsigned int spBW=SPATIAL_BANDWITH;
-	float fsBW=RANGE_BANDWITH;
-	unsigned int w=(unsigned int)imageW;
-	unsigned int h=(unsigned int)imageH;
-	unsigned int grWin=2;
+	int steps = 2;
+	unsigned int minArea = MINIMUM_SEGMANTATION_AREA;
+	bool syn = true;
+	unsigned int spBW = SPATIAL_BANDWITH;
+	float fsBW = RANGE_BANDWITH;
+	unsigned int w = (unsigned int)imageW;
+	unsigned int h = (unsigned int)imageH;
+	unsigned int grWin = 2;
 	unsigned int ii;
-	float aij=(float)0.3;//mixture parameter
-	float edgeThr=(float)0.3;
+	float aij = (float)0.3;//mixture parameter
+	float edgeThr = (float)0.3;
 	int return_val;
-    
+
 	msImageProcessor ms;
 
 	unsigned int N = 42;
 	ms.DefineLInput(laws_arr, h, w, N);
 
-    kernelType kern[2] = {DefaultKernelType, DefaultKernelType};
-    int P[2] = {DefaultSpatialDimensionality, N};
-    float tempH[2] = {1.0, 1.0};
+	kernelType kern[2] = { DefaultKernelType, DefaultKernelType };
+	int P[2] = { DefaultSpatialDimensionality, N };
+	float tempH[2] = { 1.0, 1.0 };
 	ms.DefineKernel(kern, tempH, P, 2);
 
-	
-	
-    float * conf = NULL;//?
-    float * grad = NULL;//?
-    float * wght = NULL;//?
-    
+
+
+	float * conf = NULL;//?
+	float * grad = NULL;//?
+	float * wght = NULL;//?
+
 	if (syn) {
 		// perform synergistic segmentation 
 		int maps_dim[2] = { w*h, 1 };
 		// allcate memory for confidence and gradient maps 
-		conf = (float *)malloc(w*h*sizeof(float));
-		grad = (float *)malloc(w*h*sizeof(float));
+		conf = (float *)calloc(w*h,sizeof(float));
+		grad = (float *)calloc(w*h,sizeof(float));
 
 		BgImage rgbIm;
 		rgbIm.SetImage(rgb_arr, h, w, true);//false bw // true rgb!
@@ -1102,234 +1109,233 @@ int main(int argc, char *argv[]) {
 	}
 
 	ms.Filter(spBW, fsBW, MED_SPEEDUP);
-    if (ms.ErrorStatus)
-        printf("edison_wraper:edison","Mean shift filter: %s", ms.ErrorMessage);
+	if (ms.ErrorStatus)
+		printf("edison_wraper:edison", "Mean shift filter: %s", ms.ErrorMessage);
 
-    if (steps == 2) {
-        ms.FuseRegions(fsBW, minArea);
-        if (ms.ErrorStatus)
-            printf("edison_wraper:edison","Mean shift fuse: %s", ms.ErrorMessage);
-    }
-	
+	if (steps == 2) {
+		ms.FuseRegions(fsBW, minArea);
+		if (ms.ErrorStatus)
+			printf("edison_wraper:edison", "Mean shift fuse: %s", ms.ErrorMessage);
+	}
+
 
 	float *skata = (float *)malloc(imageW*imageH * 42 * sizeof(float));
 	ms.GetRawData(skata);
 
-	int * labels_out=NULL,*MPC_out=NULL;
-	float *modes_out=NULL;
+	int * labels_out = NULL, *MPC_out = NULL;
+	float *modes_out = NULL;
 	int num_regions;
-	num_regions=ms.GetRegions(&labels_out,&modes_out,&MPC_out);
+	num_regions = ms.GetRegions(&labels_out, &modes_out, &MPC_out);
 
-	
-	
+
+
 	//---------------------NOT DOUBLE CHEKED CODE! USE WITH YOUR OWN RISK---------------------------------------//
 	//CALCULATE THE CLASSIFICATION PROPERTIES avg_region_RGB avg_region_xy avg_region_laws density_edge
 	//calculates the overall density of edges in the image
 
 	//COMPUTE AVERAGE EDGE DENSITY OF THE IMAGE
-	unsigned char * canny=(unsigned char *)edge_Image->imageData;
-	int tmp=0;
+	unsigned char * canny = (unsigned char *)edge_Image->imageData;
+	int tmp = 0;
 	float avg_density_edge;
-	for (i=0;i<imageH;i++) {
-		for (j=0;j<imageW;j++) {
-			if (sigma_thr[i*edge_Image->widthStep+j]!=0) {
+	for (i = 0; i<imageH; i++) {
+		for (j = 0; j<imageW; j++) {
+			if (sigma_thr[i*edge_Image->widthStep + j] != 0) {
 				tmp++;
 			}
 		}
 	}
-	avg_density_edge=(float)tmp/(imageW*imageH);
-	/*
-	int evaluated_regions=0;
-	int reg;
-	float * region_density_edges=(float*)malloc(num_regions*sizeof(float));
-	float * avg_region_R=(float*)malloc(num_regions*sizeof(float));
-	float * avg_region_G=(float*)malloc(num_regions*sizeof(float));
-	float * avg_region_B=(float*)malloc(num_regions*sizeof(float));
-	float * avg_region_x=(float*)malloc(num_regions*sizeof(float));
-	float * avg_region_y=(float*)malloc(num_regions*sizeof(float));
+	avg_density_edge = (float)tmp / (imageW*imageH);
 
-	int * edge_count=(int *)calloc (num_regions,sizeof(int));
-	int * sum_R=(int *)calloc (num_regions,sizeof(int));
-	int * sum_G=(int *)calloc (num_regions,sizeof(int));
-	int * sum_B=(int *)calloc (num_regions,sizeof(int));
-	int * sum_x=(int *)calloc (num_regions,sizeof(int));
-	int * sum_y=(int *)calloc (num_regions,sizeof(int));
-	int * regions_sharp_edges=(int *)calloc (num_regions,sizeof(int));
-	int * regions_blurred_edges=(int *)calloc (num_regions,sizeof(int));
-	float *sum_laws_R[14],*sum_laws_G[14],*sum_laws_B[14];
-	float *avg_region_laws_R[14],*avg_region_laws_G[14],*avg_region_laws_B[14];
-
-	for (i=0;i<14;i++) {
-		sum_laws_R[i]=(float*)calloc(num_regions,sizeof(float));
-		sum_laws_G[i]=(float*)calloc(num_regions,sizeof(float));
-		sum_laws_B[i]=(float*)calloc(num_regions,sizeof(float));
-		avg_region_laws_R[i]=(float*)malloc(num_regions*sizeof(float));
-		avg_region_laws_G[i]=(float*)malloc(num_regions*sizeof(float));
-		avg_region_laws_B[i]=(float*)malloc(num_regions*sizeof(float));
+	//COMPUTE LAWS IN IMAGE LUMINOSITY SPACE
+	int *img_laws[14];
+	for (k = 0; k < 14; k++) {
+		img_laws[k] = (int *)malloc(imageW*imageH*sizeof(int));
 	}
 
-	
-	for (i=0;i<imageH;i++) {
-		for (j=0;j<imageW;j++) {
-			reg=labels_out[i*imageW+j];
-			if (canny[i*edge_Image->widthStep+j]==255) {
-				edge_count[reg]++;
-				if (sigma[i*imageW+j]>SHARP_THRESHOLD) {
-					regions_sharp_edges[reg]++;
-				}
-				else {
-					regions_blurred_edges[reg]++;
-				}
-			}
-			
-			sum_R[reg]+=(uchar)original_R->imageData[i*original_R->widthStep+j];
-			sum_G[reg]+=(uchar)original_G->imageData[i*original_R->widthStep+j];
-			sum_B[reg]+=(uchar)original_B->imageData[i*original_R->widthStep+j];
-			sum_x[reg]+=j;
-			sum_x[reg]+=i;
-			for (ii=0;ii<14;ii++) {
-				sum_laws_R[ii][reg]+=img_laws_R[ii][i*imageW+j];
-				sum_laws_G[ii][reg]+=img_laws_G[ii][i*imageW+j];
-				sum_laws_B[ii][reg]+=img_laws_B[ii][i*imageW+j];
+	IplImage *padded_lumin;
+	padded_lumin = cvCreateImage(cvSize(original_Image->width + 4, original_Image->height + 4), IPL_DEPTH_8U, 1);
+
+	cvCopyMakeBorder(original_Image_bw, padded_lumin, offset, IPL_BORDER_CONSTANT, val);
+
+	for (k = 0; k < 14; k++) {
+		for (i = 0; i < imageH; i++){
+			for (j = 0; j < imageW; j++) {
+				img_laws[k][i*imageW + j] = convolution_laws_int(padded_lumin, i, j, k);
 			}
 		}
 	}
+	//COMPUTE AVERAGE VALUES FOR REGIONS (RED GREEN BLUE, CENTER OF MASS X-Y)
+	float * sum_R = (float *)calloc(num_regions, sizeof(float));
+	float * sum_G = (float *)calloc(num_regions, sizeof(float));
+	float * sum_B = (float *)calloc(num_regions, sizeof(float));
+	float * sum_x = (float *)calloc(num_regions, sizeof(float));
+	float * sum_y = (float *)calloc(num_regions, sizeof(float));
+	float * region_density_edges = (float *)calloc(num_regions, sizeof(float));
+	float * regions_sharp_edges = (float *)calloc(num_regions, sizeof(float));
+	float * regions_blur_edges = (float *)calloc(num_regions, sizeof(float));
+	float * averg_laws[14];
 
-	for (i=0;i<num_regions;i++) {
-		region_density_edges[i]=(float)edge_count[i]/MPC_out[i];	
-		avg_region_R[i]=(float)sum_R[i]/MPC_out[i];
-		avg_region_G[i]=(float)sum_G[i]/MPC_out[i];
-		avg_region_B[i]=(float)sum_B[i]/MPC_out[i];
-		avg_region_x[i]=(float)sum_x[i]/MPC_out[i];
-		avg_region_y[i]=(float)sum_x[i]/MPC_out[i];
-		for (ii=0;ii<14;ii++) {
-			avg_region_laws_R[ii][i]=(float)sum_laws_R[ii][i]/MPC_out[i];
-			avg_region_laws_G[ii][i]=(float)sum_laws_G[ii][i]/MPC_out[i];
-			avg_region_laws_B[ii][i]=(float)sum_laws_B[ii][i]/MPC_out[i];
+	for (i = 0; i < 14; i++){
+		averg_laws[i] = (float *)calloc(num_regions, sizeof(float));
+	}
+
+	int area;
+	for (i = 0; i < imageH; i++) {
+		for (j = 0; j < imageW; j++){
+			area = labels_out[i*imageW + j];
+			sum_R[area] += CV_IMAGE_ELEM(original_R, unsigned char, i, j);
+			sum_G[area] += CV_IMAGE_ELEM(original_R, unsigned char, i, j);
+			sum_B[area] += CV_IMAGE_ELEM(original_R, unsigned char, i, j);
+			sum_x[area] += j;
+			sum_y[area] += i;
+			for (k = 0; k < 14; k++) {
+				averg_laws[k][area] += img_laws[k][i*imageW + j];
+			}
+			if (canny_im[i*imageW + j] == 1){
+				region_density_edges[area]++;
+			}
+			if (sigma_thr[i*imageW+j] == 3) {
+				regions_sharp_edges[area]++;
+			}
+			else if (sigma_thr[i*imageW + j] == 2) {
+				regions_blur_edges[area]++;
+			}
 		}
 	}
+	for (i = 0; i < num_regions; i++){
+		sum_R[i] = (float)sum_R[i] / (imageW*imageH);
+		sum_G[i] = (float)sum_G[i] / (imageW*imageH);
+		sum_B[i] = (float)sum_B[i] / (imageW*imageH);
+		sum_x[i] = (float)0.001*sum_x[i] / MPC_out[i];
+		sum_y[i] = (float)0.001*sum_y[i] / MPC_out[i];
+		for (k = 0; k < 14; k++) {
+			averg_laws[k][i] = (float)0.00001*averg_laws[k][i] / MPC_out[i];
+		}
+		region_density_edges[i] = (float)region_density_edges[i] / MPC_out[i];
+		regions_sharp_edges[i] = (float)regions_sharp_edges[i] / MPC_out[i];
+		regions_blur_edges[i] = (float)regions_blur_edges[i] / MPC_out[i];
+
+	}
+
 	float threshold;
-	if (0.9*avg_density_edge>0.015) {
-			threshold=(float)0.9*avg_density_edge;
+	if (0.9*avg_density_edge<0.015) {
+		threshold = (float)0.9*avg_density_edge;
 	}
 	else {
-		threshold=(float)0.015;
+		threshold = (float)0.015;
 	}
 
-	int *regions=(int *)malloc(num_regions*sizeof(int)); 
-	for (i=0;i<num_regions;i++) {
-		regions[i]=-1; //-1 uninitialized, 0 blurred, 1 sharp//
-	}
-	
 
-	int point=0;
-	int dim=48;
-	int kneigh=3;
+	int *regions = (int *)malloc(num_regions*sizeof(int));
+	for (i = 0; i<num_regions; i++) {
+		regions[i] = -1; //-1 uninitialized, 0 blurred, 1 sharp//
+	}
+
+
+	int point = 0;
+	int dim = 19;
+	int kneigh = 3; //?
 	ANNpointArray dataPts;
-	dataPts=annAllocPts(1000,dim);
-	int * points2regions=(int*)calloc(1000,sizeof(int));
+	dataPts = annAllocPts(2500, dim);
+	int * points2regions = (int*)calloc(2500, sizeof(int));
+	float avg_area = (imageW*imageH) / num_regions;
 
-	for (i=0;i<num_regions;i++) {
-		if (MPC_out[i]>64 && region_density_edges[i]>threshold) {
-			if ((float)regions_sharp_edges[i]/regions_blurred_edges[i]>10.0) {
-				regions[i]=1;
-				points2regions[point]=i;
-				dataPts[point][0]=avg_region_x[i];
-				dataPts[point][1]=avg_region_y[i];
-				dataPts[point][2]=MPC_out[i];//region area
-				dataPts[point][3]=avg_region_R[i];
-				dataPts[point][4]=avg_region_G[i];
-				dataPts[point][5]=avg_region_B[i];
-				for (k=0;k<14;k++) {
-					dataPts[point][6+k]=avg_region_laws_R[k][i];
-				}
-				for (k=0;k<14;k++) {
-					dataPts[point][20+k]=avg_region_laws_G[k][i];
-				}
-				for (k=0;k<14;k++) {
-					dataPts[point][34+k]=avg_region_laws_B[k][i];
-				}
-				point++;
+	for (i = 0; i < num_regions; i++){
+		if ((regions_sharp_edges[i] != 0 || regions_blur_edges[i] != 0) && region_density_edges[i] > threshold && MPC_out[i] > 64) {
+			if (regions_sharp_edges[i] > regions_blur_edges[i]) {
+				regions[i] = 3;
 			}
-			else if ((float)regions_blurred_edges[i]/regions_sharp_edges[i]>10.0) {
-				regions[i]=0;
-				dataPts[point][0]=avg_region_x[i];
-				dataPts[point][1]=avg_region_y[i];
-				dataPts[point][2]=MPC_out[i];//region area
-				dataPts[point][3]=avg_region_R[i];
-				dataPts[point][4]=avg_region_G[i];
-				dataPts[point][5]=avg_region_B[i];
-				for (k=0;k<14;k++) {
-					dataPts[point][6+k]=avg_region_laws_G[k][i];
-				}
-				for (k=0;k<14;k++) {
-					dataPts[point][20+k]=avg_region_laws_G[k][i];
-				}
-				for (k=0;k<14;k++) {
-					dataPts[point][34+k]=avg_region_laws_B[k][i];
-				}
-				point++;
+			else {
+				regions[i] = 2;
 			}
+			points2regions[point] = i;
+			dataPts[point][0] = sum_x[i];
+			dataPts[point][1] = sum_y[i];
+			dataPts[point][2] = MPC_out[i];//region area
+			dataPts[point][3] = sum_R[i];
+			dataPts[point][4] = sum_G[i];
+			dataPts[point][5] = sum_B[i];
+			for (k = 0; k<14; k++) {
+				dataPts[point][6 + k] = averg_laws[k][i];
+			}
+			point++;
+		}
+		else if (MPC_out[i] > avg_area / 2) {
+			regions[i] = 0;
+			points2regions[point] = i;
+			dataPts[point][0] = sum_x[i];
+			dataPts[point][1] = sum_y[i];
+			dataPts[point][2] = MPC_out[i];//region area
+			dataPts[point][3] = sum_R[i];
+			dataPts[point][4] = sum_G[i];
+			dataPts[point][5] = sum_B[i];
+			for (k = 0; k<14; k++) {
+				dataPts[point][6 + k] = averg_laws[k][i];
+			}
+			point++;
+		}
+		else {
+			regions[i] = 0;
 		}
 	}
-	ANNkd_tree*	kdTree;	
-	kdTree= new ANNkd_tree(dataPts,point,dim);
+
+
+	ANNkd_tree*	kdTree;
+	kdTree = new ANNkd_tree(dataPts, point, dim);
 	ANNidxArray	nnIdx;
 	nnIdx = new ANNidx[kneigh];
 	ANNdistArray dists;
-	dists = new ANNdist[kneigh];	
+	dists = new ANNdist[kneigh];
 	ANNpoint queryPt;
-	queryPt = annAllocPt(dim);	
+	queryPt = annAllocPt(dim);
 
-	for (i=0;i<num_regions;i++) {
-		if (regions[i]==-1) {
-			queryPt[0]=avg_region_x[i];
-			queryPt[1]=avg_region_y[i];
-			queryPt[2]=MPC_out[i];//region area
-			queryPt[3]=avg_region_R[i];
-			queryPt[4]=avg_region_G[i];
-			queryPt[5]=avg_region_B[i];
-			for (k=0;k<14;k++) {
-				queryPt[6+k]=avg_region_laws_G[k][i];
+	for (i = 0; i<num_regions; i++) {
+		if (regions[i] == -1) {
+			queryPt[0] = sum_x[i];
+			queryPt[1] = sum_y[i];
+			queryPt[2] = MPC_out[i];//region area
+			queryPt[3] = sum_R[i];
+			queryPt[4] = sum_G[i];
+			queryPt[5] = sum_B[i];
+			for (k = 0; k<14; k++) {
+				queryPt[6 + k] = averg_laws[k][i];
 			}
-			for (k=0;k<14;k++) {
-				queryPt[20+k]=avg_region_laws_G[k][i];
+
+			kdTree->annkSearch(queryPt, kneigh, nnIdx, dists);
+			int count2 = 0;
+			int count3 = 0;
+			int count0 = 0;
+			for (k = 0; k<kneigh; k++) {
+				if (regions[points2regions[nnIdx[k]]] == 0) count0++;
+				if (regions[points2regions[nnIdx[k]]] == 2) count2++;
+				if (regions[points2regions[nnIdx[k]]] == 3) count3++;
 			}
-			for (k=0;k<14;k++) {
-				queryPt[34+k]=avg_region_laws_B[k][i];
+			if (count0 >= count2 && count0>=count3) {
+				regions[i] = 0;
 			}
-			kdTree->annkSearch(queryPt,kneigh,nnIdx,dists);
-			tmp=0;
-			for (k=0;k<kneigh;k++) {
-				tmp+=regions[points2regions[nnIdx[k]]];
+			else if (count2 >= count0 && count2 >= count3) {
+				regions[i] = 2;
 			}
-			if (tmp>kneigh/2) {
-				regions[i]=1;
-			}
-			else {
-				regions[i]=0;
+			else if (count3 >= count2 && count3 >= count0) {
+				regions[i] = 3;
 			}
 		}
 	}
-	cvSaveImage("ResultCanny.jpg",edge_Image);
+	cvSaveImage("ResultCanny.jpg", edge_Image);
 	int region;
-	for (i=0;i<imageH;i++) {
-		for (j=0;j<imageW;j++) {
-//			derivative_Rx->imageData[i*derivative_Rx->widthStep+j]=(char)segmluv[i*imageW+j];
-			region=labels_out[i*imageW+j];
-			if (regions[region]==1) {
-				edge_Image->imageData[i*edge_Image->width+j]=-1;
+	for (i = 0; i<imageH; i++) {
+		for (j = 0; j<imageW; j++) {
+			region = labels_out[i*imageW + j];
+			if (regions[region] == 3) {
+				edge_Image->imageData[i*edge_Image->width + j] = -1;
 			}
 			else {
-				edge_Image->imageData[i*edge_Image->width+j]=0;
+				edge_Image->imageData[i*edge_Image->width + j] = 0;
 			}
 		}
 	}
 
-	cvSaveImage("final_selection.jpg",edge_Image);
+	cvSaveImage("final_selection.jpg", edge_Image);
 
-
-	*/
-//release kai save
-return 0;
+	return 0;
 }
